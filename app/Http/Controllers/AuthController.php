@@ -76,10 +76,24 @@ class AuthController extends Controller
                 'created_at' => now(),
             ]);
 
+            // Debug role information
+            \Log::info('User login debug', [
+                'user_id' => $user->user_id,
+                'username' => $user->username,
+                'role_slug' => $user->role->slug ?? 'null',
+                'role_name' => $user->role->name ?? 'null'
+            ]);
+
             if (strtolower($user->role->slug) === 'admin') {
-                return redirect()->route('admin.dashboard')->with('success', 'Login successful!');
+                return redirect()->route('admin.dashboard')->with('success', 'Login successful! Welcome Admin!');
             }
-            return redirect()->route('user.home')->with('success', 'Login successful!');
+            
+            // Fallback: check role name if slug doesn't work
+            if (strtolower($user->role->name) === 'administrator') {
+                return redirect()->route('admin.dashboard')->with('success', 'Login successful! Welcome Admin!');
+            }
+            
+            return redirect()->route('home')->with('success', 'Login successful!');
 
         } catch (\Exception $e) {
             return back()->withErrors(['error' => 'Login failed. Please try again.'])->withInput();

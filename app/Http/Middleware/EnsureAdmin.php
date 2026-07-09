@@ -14,7 +14,7 @@ class EnsureAdmin
             return redirect()->route('auth')->withErrors(['error' => 'Please login to continue.']);
         }
         
-        if (session('role') !== 'admin') {
+        if (session('role_name') !== 'admin') {
             return redirect()->route('home')->withErrors(['error' => 'Unauthorized. Admin access required.']);
         }
         

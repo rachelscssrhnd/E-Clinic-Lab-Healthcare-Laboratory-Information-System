@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>E-Clinic Lab - Sign In</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/feather-icons"></script>
@@ -208,5 +209,429 @@
     </script>
 </body>
 </html>
+
+
+
+                    <div>
+
+                        <label class="block text-sm font-medium text-gray-700">Email</label>
+
+                        <input type="email" name="email" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm" placeholder="you@example.com" value="{{ old('email') }}">
+
+                        @error('email') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+
+                    </div>
+
+                    <div>
+
+                        <label class="block text-sm font-medium text-gray-700">Phone Number</label>
+
+                        <input type="tel" name="no_hp" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm" placeholder="08123456789" value="{{ old('no_hp') }}">
+
+                        @error('no_hp') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+
+                    </div>
+
+                    <div>
+
+                        <label class="block text-sm font-medium text-gray-700">Date of Birth</label>
+
+                        <input type="date" name="tgl_lahir" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm" value="{{ old('tgl_lahir') }}">
+
+                        @error('tgl_lahir') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+
+                    </div>
+
+                    <div>
+
+                        <label class="block text-sm font-medium text-gray-700">Password</label>
+
+                        <input type="password" name="password" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm" placeholder="••••••••">
+
+                        @error('password') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+
+                    </div>
+
+                    <div>
+
+                        <label class="block text-sm font-medium text-gray-700">Confirm Password</label>
+
+                        <input type="password" name="password_confirmation" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm" placeholder="••••••••">
+
+                        @error('password_confirmation') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+
+                    </div>
+
+                    @if(session('error'))
+
+                        <div class="text-red-500 text-sm">{{ session('error') }}</div>
+
+                    @endif
+
+                    <button type="submit" class="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-green-500 to-yellow-400 hover:from-green-600 hover:to-yellow-500">
+
+                        <i data-feather="user-plus" class="mr-2"></i> Create Account
+
+                    </button>
+
+                </form>
+
+                        </div>
+
+            <p id="cta-to-register" class="mt-6 text-center text-sm text-gray-600">Don't have an account? <a href="#" id="go-to-register" class="text-primary-600 hover:text-primary-700 font-medium">Sign up</a></p>
+
+            <p id="cta-to-login" class="mt-2 text-center text-sm text-gray-600 hidden">Have an account? <a href="#" id="go-to-login" class="text-primary-600 hover:text-primary-700 font-medium">Log in</a></p>
+
+                        </div>
+
+        
+
+        </div>
+
+    </div>
+
+
+
+
+
+    <script>
+
+        AOS.init();
+
+        feather.replace();
+
+
+
+        // Toggle between login and register forms
+
+        document.addEventListener('DOMContentLoaded', function() {
+
+            const loginTab = document.getElementById('login-tab');
+
+            const registerTab = document.getElementById('register-tab');
+
+            const loginForm = document.getElementById('login-form');
+
+            const registerForm = document.getElementById('register-form');
+
+
+
+            loginTab.addEventListener('click', function() {
+
+                loginTab.className = 'flex-1 py-2 px-4 text-center text-sm font-medium text-white bg-gradient-to-r from-green-500 to-yellow-400 rounded-l-md';
+
+                registerTab.className = 'flex-1 py-2 px-4 text-center text-sm font-medium text-gray-700 bg-gray-100 rounded-r-md hover:bg-gray-200';
+
+                loginForm.classList.remove('hidden');
+
+                registerForm.classList.add('hidden');
+
+                document.getElementById('cta-to-register').classList.remove('hidden');
+
+                document.getElementById('cta-to-login').classList.add('hidden');
+
+            });
+
+
+
+            registerTab.addEventListener('click', function() {
+
+                registerTab.className = 'flex-1 py-2 px-4 text-center text-sm font-medium text-white bg-gradient-to-r from-green-500 to-yellow-400 rounded-r-md';
+
+                loginTab.className = 'flex-1 py-2 px-4 text-center text-sm font-medium text-gray-700 bg-gray-100 rounded-l-md hover:bg-gray-200';
+
+                registerForm.classList.remove('hidden');
+
+                loginForm.classList.add('hidden');
+
+                document.getElementById('cta-to-register').classList.add('hidden');
+
+                document.getElementById('cta-to-login').classList.remove('hidden');
+
+            });
+
+
+
+            // Show register form if mode is register
+
+            @if(isset($mode) && $mode === 'register')
+
+                registerTab.click();
+
+            @endif
+
+
+
+            // Simple popup for success messages
+
+            const msg = @json(session('success'));
+
+            if (msg) {
+
+                const popup = document.createElement('div');
+
+                popup.className = 'fixed inset-0 flex items-center justify-center z-50';
+
+                popup.innerHTML = `
+
+                    <div class="absolute inset-0 bg-black/30"></div>
+
+                    <div class="relative bg-white rounded-lg shadow-lg p-6 w-full max-w-sm">
+
+                        <h3 class="text-lg font-semibold text-gray-900 mb-2">Success</h3>
+
+                        <p class="text-sm text-gray-700">${msg}</p>
+
+                        <div class="mt-4 text-right">
+
+                            <button id="popup-close" class="px-4 py-2 rounded-md bg-green-600 text-white">OK</button>
+
+                        </div>
+
+                    </div>`;
+
+                document.body.appendChild(popup);
+
+                document.getElementById('popup-close').onclick = () => popup.remove();
+
+                setTimeout(() => popup.remove(), 2500);
+
+            }
+
+
+
+            // Switch to login when clicking link under signup
+
+            const goLogin = document.getElementById('go-to-login');
+
+            if (goLogin) goLogin.addEventListener('click', e => { e.preventDefault(); loginTab.click(); });
+
+            const goRegister = document.getElementById('go-to-register');
+
+            if (goRegister) goRegister.addEventListener('click', e => { e.preventDefault(); registerTab.click(); });
+
+        });
+
+    </script>
+
+</body>
+
+</html>
+
+
+
+
+
+
+
+                    <div>
+
+                        <label class="block text-sm font-medium text-gray-700">Email</label>
+
+                        <input type="email" name="email" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm" placeholder="you@example.com" value="{{ old('email') }}">
+
+                        @error('email') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+
+                    </div>
+
+                    <div>
+
+                        <label class="block text-sm font-medium text-gray-700">Phone Number</label>
+
+                        <input type="tel" name="no_hp" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm" placeholder="08123456789" value="{{ old('no_hp') }}">
+
+                        @error('no_hp') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+
+                    </div>
+
+                    <div>
+
+                        <label class="block text-sm font-medium text-gray-700">Date of Birth</label>
+
+                        <input type="date" name="tgl_lahir" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm" value="{{ old('tgl_lahir') }}">
+
+                        @error('tgl_lahir') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+
+                    </div>
+
+                    <div>
+
+                        <label class="block text-sm font-medium text-gray-700">Password</label>
+
+                        <input type="password" name="password" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm" placeholder="••••••••">
+
+                        @error('password') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+
+                    </div>
+
+                    <div>
+
+                        <label class="block text-sm font-medium text-gray-700">Confirm Password</label>
+
+                        <input type="password" name="password_confirmation" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm" placeholder="••••••••">
+
+                        @error('password_confirmation') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+
+                    </div>
+
+                    @if(session('error'))
+
+                        <div class="text-red-500 text-sm">{{ session('error') }}</div>
+
+                    @endif
+
+                    <button type="submit" class="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-green-500 to-yellow-400 hover:from-green-600 hover:to-yellow-500">
+
+                        <i data-feather="user-plus" class="mr-2"></i> Create Account
+
+                    </button>
+
+                </form>
+
+                        </div>
+
+            <p id="cta-to-register" class="mt-6 text-center text-sm text-gray-600">Don't have an account? <a href="#" id="go-to-register" class="text-primary-600 hover:text-primary-700 font-medium">Sign up</a></p>
+
+            <p id="cta-to-login" class="mt-2 text-center text-sm text-gray-600 hidden">Have an account? <a href="#" id="go-to-login" class="text-primary-600 hover:text-primary-700 font-medium">Log in</a></p>
+
+                        </div>
+
+        
+
+        </div>
+
+    </div>
+
+
+
+
+
+    <script>
+
+        AOS.init();
+
+        feather.replace();
+
+
+
+        // Toggle between login and register forms
+
+        document.addEventListener('DOMContentLoaded', function() {
+
+            const loginTab = document.getElementById('login-tab');
+
+            const registerTab = document.getElementById('register-tab');
+
+            const loginForm = document.getElementById('login-form');
+
+            const registerForm = document.getElementById('register-form');
+
+
+
+            loginTab.addEventListener('click', function() {
+
+                loginTab.className = 'flex-1 py-2 px-4 text-center text-sm font-medium text-white bg-gradient-to-r from-green-500 to-yellow-400 rounded-l-md';
+
+                registerTab.className = 'flex-1 py-2 px-4 text-center text-sm font-medium text-gray-700 bg-gray-100 rounded-r-md hover:bg-gray-200';
+
+                loginForm.classList.remove('hidden');
+
+                registerForm.classList.add('hidden');
+
+                document.getElementById('cta-to-register').classList.remove('hidden');
+
+                document.getElementById('cta-to-login').classList.add('hidden');
+
+            });
+
+
+
+            registerTab.addEventListener('click', function() {
+
+                registerTab.className = 'flex-1 py-2 px-4 text-center text-sm font-medium text-white bg-gradient-to-r from-green-500 to-yellow-400 rounded-r-md';
+
+                loginTab.className = 'flex-1 py-2 px-4 text-center text-sm font-medium text-gray-700 bg-gray-100 rounded-l-md hover:bg-gray-200';
+
+                registerForm.classList.remove('hidden');
+
+                loginForm.classList.add('hidden');
+
+                document.getElementById('cta-to-register').classList.add('hidden');
+
+                document.getElementById('cta-to-login').classList.remove('hidden');
+
+            });
+
+
+
+            // Show register form if mode is register
+
+            @if(isset($mode) && $mode === 'register')
+
+                registerTab.click();
+
+            @endif
+
+
+
+            // Simple popup for success messages
+
+            const msg = @json(session('success'));
+
+            if (msg) {
+
+                const popup = document.createElement('div');
+
+                popup.className = 'fixed inset-0 flex items-center justify-center z-50';
+
+                popup.innerHTML = `
+
+                    <div class="absolute inset-0 bg-black/30"></div>
+
+                    <div class="relative bg-white rounded-lg shadow-lg p-6 w-full max-w-sm">
+
+                        <h3 class="text-lg font-semibold text-gray-900 mb-2">Success</h3>
+
+                        <p class="text-sm text-gray-700">${msg}</p>
+
+                        <div class="mt-4 text-right">
+
+                            <button id="popup-close" class="px-4 py-2 rounded-md bg-green-600 text-white">OK</button>
+
+                        </div>
+
+                    </div>`;
+
+                document.body.appendChild(popup);
+
+                document.getElementById('popup-close').onclick = () => popup.remove();
+
+                setTimeout(() => popup.remove(), 2500);
+
+            }
+
+
+
+            // Switch to login when clicking link under signup
+
+            const goLogin = document.getElementById('go-to-login');
+
+            if (goLogin) goLogin.addEventListener('click', e => { e.preventDefault(); loginTab.click(); });
+
+            const goRegister = document.getElementById('go-to-register');
+
+            if (goRegister) goRegister.addEventListener('click', e => { e.preventDefault(); registerTab.click(); });
+
+        });
+
+    </script>
+
+</body>
+
+</html>
+
+
+
+
 
 

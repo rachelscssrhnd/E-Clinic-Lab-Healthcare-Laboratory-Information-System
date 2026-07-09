@@ -79,9 +79,10 @@ Route::get('/branches', [BranchController::class, 'index'])->name('branches');
 Route::get('/api/branches', [BranchController::class, 'api'])->name('branches.api');
 
 // Admin routes
+Route::get('/admin', [AdminController::class, 'index'])->name('admin.dashboard');
+Route::get('/admin/dashboard', [AdminController::class, 'index'])->name('admin.dashboard');
+
 Route::middleware('admin')->group(function () {
-    Route::get('/admin', [AdminController::class, 'index'])->name('admin.dashboard');
-    Route::get('/admin/dashboard', [AdminController::class, 'index'])->name('admin.dashboard');
     
     // Admin booking management
     Route::get('/admin/bookings', [AdminController::class, 'getBookings'])->name('admin.bookings');
