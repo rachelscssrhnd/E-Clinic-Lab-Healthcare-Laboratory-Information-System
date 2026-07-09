@@ -6,6 +6,42 @@
     <title>E-Clinic Lab - Admin</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            200: '#bbf7d0',
+                            300: '#86efac',
+                            400: '#4ade80',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            800: '#166534',
+                            900: '#14532d',
+                        },
+                        secondary: {
+                            50: '#fefce8',
+                            100: '#fef9c3',
+                            200: '#fef08a',
+                            300: '#fde047',
+                            400: '#facc15',
+                            500: '#eab308',
+                            600: '#ca8a04',
+                            700: '#a16207',
+                            800: '#854d0e',
+                            900: '#713f12',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
     <script src="https://unpkg.com/feather-icons"></script>
     <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
 </head>
@@ -16,8 +52,8 @@
             <div class="flex justify-between h-16">
                 <div class="flex items-center">
                     <div class="flex-shrink-0 flex items-center">
-                        <i data-feather="activity" class="h-8 w-8 text-green-600"></i>
-                        <span class="ml-2 text-2xl font-bold text-green-700">E-Clinic Lab</span>
+                        <i data-feather="activity" class="h-8 w-8 text-primary-600"></i>
+                        <span class="ml-2 text-2xl font-bold text-primary-700">E-Clinic Lab</span>
                     </div>
                 </div>
                 <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
@@ -35,8 +71,11 @@
             <h1 class="text-3xl font-extrabold text-gray-900">Admin Dashboard</h1>
             <p class="mt-2 text-gray-600">Manage bookings and lab tests</p>
             <div class="mt-4 flex space-x-3">
-                <button id="tab-bookings" class="px-4 py-2 rounded-md text-sm font-medium text-white bg-gradient-to-r from-green-500 to-yellow-400">Booking Management</button>
+                <button id="tab-bookings" class="px-4 py-2 rounded-md text-sm font-medium text-white bg-gradient-to-r from-primary-600 to-secondary-500">Booking Management</button>
+                <button id="tab-payments" class="px-4 py-2 rounded-md text-sm font-medium text-gray-700 border border-gray-200 bg-white">Payment Management</button>
                 <button id="tab-tests" class="px-4 py-2 rounded-md text-sm font-medium text-gray-700 border border-gray-200 bg-white">Test Management</button>
+                <button id="tab-results" class="px-4 py-2 rounded-md text-sm font-medium text-gray-700 border border-gray-200 bg-white">Test Result Management</button>
+                <button id="tab-analytics" class="px-4 py-2 rounded-md text-sm font-medium text-gray-700 border border-gray-200 bg-white">Dashboard Analytics</button>
             </div>
         </div>
     </div>
@@ -47,7 +86,7 @@
             <section id="panel-bookings" class="space-y-6">
                 <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
                     <div class="flex items-center justify-between">
-                        <h2 class="text-lg font-semibold text-gray-900 flex items-center"><i data-feather="clipboard" class="mr-2 text-green-600"></i> Bookings</h2>
+                        <h2 class="text-lg font-semibold text-gray-900 flex items-center"><i data-feather="clipboard" class="mr-2 text-primary-600"></i> Bookings</h2>
                         <div class="flex space-x-2">
                             <button id="refresh-bookings" class="inline-flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 border border-gray-200 hover:bg-gray-50">
                                 <i data-feather="refresh-cw" class="mr-2"></i>Refresh
@@ -60,9 +99,12 @@
                                 <tr>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nomor HP</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Branch</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Session</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Proof</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Test Status</th>
                                     <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                                 </tr>
                             </thead>
@@ -71,35 +113,87 @@
                                 <tr>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $booking->booking_id }}</td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $booking->pasien->nama ?? 'Unknown' }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $booking->pasien->email ?? '-' }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $booking->pasien->no_hp ?? '-' }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ data_get($booking, 'cabang.nama_cabang', '-') }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $booking->sesi ?? '-' }}</td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ \Carbon\Carbon::parse($booking->tanggal_booking)->format('d M Y') }}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                                            @if($booking->status_pembayaran == 'pending') bg-yellow-100 text-yellow-800
-                                            @elseif($booking->status_pembayaran == 'paid') bg-green-100 text-green-800
-                                            @else bg-red-100 text-red-800
-                                            @endif">
-                                            {{ strtoupper($booking->status_pembayaran) }}
-                                        </span>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        @if(optional($booking->pembayaran)->bukti_path)
-                                            <a href="{{ Storage::disk('public')->url($booking->pembayaran->bukti_path) }}" target="_blank" class="text-primary-600 hover:text-primary-700">View</a>
-                                        @else
-                                            -
-                                        @endif
-                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $booking->status_tes }}</td>
                                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm">
-                                        <button onclick="verifyPayment({{ $booking->booking_id }})" class="px-3 py-1 rounded-md text-white bg-green-600 hover:bg-green-700">Verify Payment</button>
-                                        <button onclick="editBooking({{ $booking->booking_id }})" class="ml-2 px-3 py-1 rounded-md text-white bg-primary-600 hover:bg-primary-700">Edit</button>
+                                        @if($booking->status_tes === 'confirmed')
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Confirmed</span>
+                                        @else
+                                            <button onclick="confirmBooking({{ $booking->booking_id }})" class="ml-2 px-3 py-1 rounded-md text-white bg-primary-600 hover:bg-primary-700">Confirm Booking</button>
+                                        @endif
+                                        <button onclick='editBooking({{ $booking->booking_id }}, @json($booking->status_pembayaran), @json($booking->status_tes))' class="ml-2 px-3 py-1 rounded-md text-white bg-secondary-500 hover:bg-secondary-600">Edit</button>
                                         <button onclick="deleteBooking({{ $booking->booking_id }})" class="ml-2 px-3 py-1 rounded-md text-white bg-red-600 hover:bg-red-700">Delete</button>
                                     </td>
                                 </tr>
                                 @empty
                                 <tr>
-                                    <td colspan="5" class="px-6 py-4 text-center text-sm text-gray-500">No bookings found</td>
+                                    <td colspan="9" class="px-6 py-4 text-center text-sm text-gray-500">No bookings found</td>
                                 </tr>
                                 @endforelse
                             </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section id="panel-results" class="space-y-6 hidden">
+                <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-lg font-semibold text-gray-900 flex items-center"><i data-feather="file-text" class="mr-2 text-primary-600"></i> Test Results</h2>
+                        <div class="flex space-x-2">
+                            <button id="refresh-results" class="inline-flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 border border-gray-200 hover:bg-gray-50">
+                                <i data-feather="refresh-cw" class="mr-2"></i>Refresh
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mt-4 overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Booking ID</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tests</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Result</th>
+                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="result-rows" class="bg-white divide-y divide-gray-100"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Payment Management -->
+            <section id="panel-payments" class="space-y-6 hidden">
+                <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-lg font-semibold text-gray-900 flex items-center"><i data-feather="credit-card" class="mr-2 text-primary-600"></i> Payments</h2>
+                        <div class="flex space-x-2">
+                            <button id="refresh-payments" class="inline-flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 border border-gray-200 hover:bg-gray-50">
+                                <i data-feather="refresh-cw" class="mr-2"></i>Refresh
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mt-4 overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Booking</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Method</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Proof</th>
+                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="payment-rows" class="bg-white divide-y divide-gray-100"></tbody>
                         </table>
                     </div>
                 </div>
@@ -109,9 +203,9 @@
             <section id="panel-tests" class="space-y-6 hidden">
                 <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
                     <div class="flex items-center justify-between">
-                        <h2 class="text-lg font-semibold text-gray-900 flex items-center"><i data-feather="flask" class="mr-2 text-green-600"></i> Lab Tests</h2>
+                        <h2 class="text-lg font-semibold text-gray-900 flex items-center"><i data-feather="flask" class="mr-2 text-primary-600"></i> Lab Tests</h2>
                         <div class="flex space-x-2">
-                            <button id="add-test" class="inline-flex items-center px-3 py-2 rounded-md text-sm font-medium text-white bg-gradient-to-r from-green-500 to-yellow-400">
+                            <button id="add-test" class="inline-flex items-center px-3 py-2 rounded-md text-sm font-medium text-white bg-gradient-to-r from-primary-600 to-secondary-500">
                                 <i data-feather="plus" class="mr-2"></i>Add Test
                             </button>
                             <button id="refresh-tests" class="inline-flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 border border-gray-200 hover:bg-gray-50">
@@ -137,6 +231,75 @@
                     </div>
                 </div>
             </section>
+
+            <!-- Dashboard Analytics -->
+            <section id="panel-analytics" class="space-y-6 hidden">
+                <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-lg font-semibold text-gray-900 flex items-center"><i data-feather="bar-chart-2" class="mr-2 text-primary-600"></i> Dashboard Analytics (Data Warehouse)</h2>
+                        <div class="flex space-x-2">
+                            <button id="refresh-analytics" class="inline-flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 border border-gray-200 hover:bg-gray-50">
+                                <i data-feather="refresh-cw" class="mr-2"></i>Refresh
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="analytics-error" class="mt-4 hidden rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"></div>
+
+                    <div class="mt-6 space-y-8">
+                        <div>
+                            <div class="flex items-center justify-between mb-3">
+                                <h3 class="text-sm font-semibold text-gray-900">Booking Analytics</h3>
+                                <span class="text-xs text-gray-500">Booking volume & distribution</span>
+                            </div>
+                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <div class="border border-gray-200 rounded-lg p-4">
+                                    <h4 class="text-sm font-semibold text-gray-800 mb-2">Booking Trend (Monthly)</h4>
+                                    <canvas id="chart-booking-bulanan" height="140"></canvas>
+                                </div>
+                                <div class="border border-gray-200 rounded-lg p-4">
+                                    <h4 class="text-sm font-semibold text-gray-800 mb-2">Bookings by Branch</h4>
+                                    <canvas id="chart-booking-cabang" height="140"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="flex items-center justify-between mb-3">
+                                <h3 class="text-sm font-semibold text-gray-900">Payment Analytics</h3>
+                                <span class="text-xs text-gray-500">Revenue analytics</span>
+                            </div>
+                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <div class="border border-gray-200 rounded-lg p-4">
+                                    <h4 class="text-sm font-semibold text-gray-800 mb-2">Revenue by Quarter</h4>
+                                    <canvas id="chart-revenue-kuartal" height="140"></canvas>
+                                </div>
+                                <div class="border border-gray-200 rounded-lg p-4">
+                                    <h4 class="text-sm font-semibold text-gray-800 mb-2">Revenue by Branch</h4>
+                                    <canvas id="chart-revenue-cabang" height="140"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="flex items-center justify-between mb-3">
+                                <h3 class="text-sm font-semibold text-gray-900">Test Analytics</h3>
+                                <span class="text-xs text-gray-500">Test/service insights</span>
+                            </div>
+                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <div class="border border-gray-200 rounded-lg p-4">
+                                    <h4 class="text-sm font-semibold text-gray-800 mb-2">Test Distribution</h4>
+                                    <canvas id="chart-distribusi-tes" height="140"></canvas>
+                                </div>
+                                <div class="border border-gray-200 rounded-lg p-4">
+                                    <h4 class="text-sm font-semibold text-gray-800 mb-2">Test Trend (Monthly)</h4>
+                                    <canvas id="chart-tren-tes" height="140"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
         </div>
     </div>
 
@@ -147,7 +310,7 @@
             <form id="modal-form" class="mt-4 space-y-3"></form>
             <div class="mt-6 flex justify-end space-x-3">
                 <button id="modal-cancel" class="px-4 py-2 rounded-md border border-gray-200 text-gray-700">Cancel</button>
-                <button id="modal-submit" class="px-4 py-2 rounded-md text-white bg-gradient-to-r from-green-500 to-yellow-400">Save</button>
+                <button id="modal-submit" class="px-4 py-2 rounded-md text-white bg-gradient-to-r from-primary-600 to-secondary-500">Save</button>
             </div>
         </div>
     </div>
@@ -157,26 +320,417 @@
 
         const el = (id) => document.getElementById(id);
         const panelBookings = el('panel-bookings');
+        const panelPayments = el('panel-payments');
         const panelTests = el('panel-tests');
+        const panelResults = el('panel-results');
+        const panelAnalytics = el('panel-analytics');
+        const csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+        const charts = {};
+
+        try {
+            if (window.ChartZoom) {
+                Chart.register(window.ChartZoom);
+            }
+        } catch (e) {}
 
         function setActive(tab) {
             const b = el('tab-bookings');
+            const p = el('tab-payments');
             const t = el('tab-tests');
+            const r = el('tab-results');
+            const a = el('tab-analytics');
             if (tab === 'bookings') {
-                b.className = 'px-4 py-2 rounded-md text-sm font-medium text-white bg-gradient-to-r from-green-500 to-yellow-400';
+                b.className = 'px-4 py-2 rounded-md text-sm font-medium text-white bg-gradient-to-r from-primary-600 to-secondary-500';
+                p.className = 'px-4 py-2 rounded-md text-sm font-medium text-gray-700 border border-gray-200 bg-white';
                 t.className = 'px-4 py-2 rounded-md text-sm font-medium text-gray-700 border border-gray-200 bg-white';
+                r.className = 'px-4 py-2 rounded-md text-sm font-medium text-gray-700 border border-gray-200 bg-white';
+                a.className = 'px-4 py-2 rounded-md text-sm font-medium text-gray-700 border border-gray-200 bg-white';
                 panelBookings.classList.remove('hidden');
+                panelPayments.classList.add('hidden');
                 panelTests.classList.add('hidden');
-            } else {
-                t.className = 'px-4 py-2 rounded-md text-sm font-medium text-white bg-gradient-to-r from-green-500 to-yellow-400';
+                panelResults.classList.add('hidden');
+                panelAnalytics.classList.add('hidden');
+            } else if (tab === 'payments') {
+                p.className = 'px-4 py-2 rounded-md text-sm font-medium text-white bg-gradient-to-r from-primary-600 to-secondary-500';
                 b.className = 'px-4 py-2 rounded-md text-sm font-medium text-gray-700 border border-gray-200 bg-white';
+                t.className = 'px-4 py-2 rounded-md text-sm font-medium text-gray-700 border border-gray-200 bg-white';
+                r.className = 'px-4 py-2 rounded-md text-sm font-medium text-gray-700 border border-gray-200 bg-white';
+                a.className = 'px-4 py-2 rounded-md text-sm font-medium text-gray-700 border border-gray-200 bg-white';
+                panelPayments.classList.remove('hidden');
+                panelBookings.classList.add('hidden');
+                panelTests.classList.add('hidden');
+                panelResults.classList.add('hidden');
+                panelAnalytics.classList.add('hidden');
+            } else if (tab === 'results') {
+                r.className = 'px-4 py-2 rounded-md text-sm font-medium text-white bg-gradient-to-r from-primary-600 to-secondary-500';
+                b.className = 'px-4 py-2 rounded-md text-sm font-medium text-gray-700 border border-gray-200 bg-white';
+                p.className = 'px-4 py-2 rounded-md text-sm font-medium text-gray-700 border border-gray-200 bg-white';
+                t.className = 'px-4 py-2 rounded-md text-sm font-medium text-gray-700 border border-gray-200 bg-white';
+                a.className = 'px-4 py-2 rounded-md text-sm font-medium text-gray-700 border border-gray-200 bg-white';
+                panelResults.classList.remove('hidden');
+                panelBookings.classList.add('hidden');
+                panelPayments.classList.add('hidden');
+                panelTests.classList.add('hidden');
+                panelAnalytics.classList.add('hidden');
+            } else if (tab === 'analytics') {
+                a.className = 'px-4 py-2 rounded-md text-sm font-medium text-white bg-gradient-to-r from-primary-600 to-secondary-500';
+                b.className = 'px-4 py-2 rounded-md text-sm font-medium text-gray-700 border border-gray-200 bg-white';
+                p.className = 'px-4 py-2 rounded-md text-sm font-medium text-gray-700 border border-gray-200 bg-white';
+                t.className = 'px-4 py-2 rounded-md text-sm font-medium text-gray-700 border border-gray-200 bg-white';
+                r.className = 'px-4 py-2 rounded-md text-sm font-medium text-gray-700 border border-gray-200 bg-white';
+                panelAnalytics.classList.remove('hidden');
+                panelBookings.classList.add('hidden');
+                panelPayments.classList.add('hidden');
+                panelTests.classList.add('hidden');
+                panelResults.classList.add('hidden');
+            } else {
+                t.className = 'px-4 py-2 rounded-md text-sm font-medium text-white bg-gradient-to-r from-primary-600 to-secondary-500';
+                b.className = 'px-4 py-2 rounded-md text-sm font-medium text-gray-700 border border-gray-200 bg-white';
+                p.className = 'px-4 py-2 rounded-md text-sm font-medium text-gray-700 border border-gray-200 bg-white';
+                r.className = 'px-4 py-2 rounded-md text-sm font-medium text-gray-700 border border-gray-200 bg-white';
+                a.className = 'px-4 py-2 rounded-md text-sm font-medium text-gray-700 border border-gray-200 bg-white';
                 panelTests.classList.remove('hidden');
                 panelBookings.classList.add('hidden');
+                panelPayments.classList.add('hidden');
+                panelAnalytics.classList.add('hidden');
+                panelResults.classList.add('hidden');
             }
         }
 
         el('tab-bookings').addEventListener('click', () => setActive('bookings'));
+        el('tab-payments').addEventListener('click', () => { setActive('payments'); loadPayments(); });
         el('tab-tests').addEventListener('click', () => setActive('tests'));
+        el('tab-results').addEventListener('click', () => { setActive('results'); loadResultBookings(); });
+        el('tab-analytics').addEventListener('click', () => { setActive('analytics'); loadAnalytics(); });
+
+        function escapeHtml(s) {
+            return String(s ?? '')
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#039;');
+        }
+
+        function formatNumberId(value) {
+            const n = Number(value || 0);
+            return Number.isFinite(n) ? n.toLocaleString('id-ID') : String(value ?? '');
+        }
+
+        function formatRupiah(value) {
+            const n = Number(value || 0);
+            const body = Number.isFinite(n) ? n.toLocaleString('id-ID') : String(value ?? '');
+            return `Rp${body}`;
+        }
+
+        function openInfoModal(title, bodyHtml) {
+            openModal(title, bodyHtml, () => closeModal());
+            const submit = el('modal-submit');
+            if (submit) submit.textContent = 'Close';
+        }
+
+        function attachResetZoom(canvasId, chartKey) {
+            const canvas = el(canvasId);
+            if (!canvas) return;
+            canvas.ondblclick = () => {
+                const c = charts[chartKey];
+                if (c && typeof c.resetZoom === 'function') c.resetZoom();
+            };
+        }
+
+        function makeInteractiveOptions({ title, showLegend = false, legendPosition = 'top', enableZoom = false, valueFormatter } = {}) {
+            const formatValue = typeof valueFormatter === 'function' ? valueFormatter : (v) => String(v ?? '');
+            return {
+                responsive: true,
+                interaction: { mode: enableZoom ? 'index' : 'nearest', intersect: false },
+                plugins: {
+                    legend: { display: !!showLegend, position: legendPosition },
+                    tooltip: {
+                        enabled: true,
+                        callbacks: {
+                            label: (ctx) => {
+                                const raw = ctx.raw ?? (ctx.parsed && (ctx.parsed.y ?? ctx.parsed));
+                                const v = formatValue(raw);
+                                const prefix = ctx.dataset?.label ? `${ctx.dataset.label}: ` : '';
+                                return `${prefix}${v}`;
+                            }
+                        }
+                    },
+                    zoom: enableZoom ? {
+                        pan: { enabled: true, mode: 'x' },
+                        zoom: {
+                            wheel: { enabled: true },
+                            drag: { enabled: true },
+                            mode: 'x'
+                        }
+                    } : undefined
+                },
+                onHover: (event, elements) => {
+                    const target = event?.native?.target;
+                    if (target) target.style.cursor = elements && elements.length ? 'pointer' : 'default';
+                },
+                onClick: (event, elements, chart) => {
+                    if (!elements || !elements.length || !chart) return;
+                    const first = elements[0];
+                    const label = chart.data?.labels?.[first.index] ?? '';
+                    const dataset = chart.data?.datasets?.[first.datasetIndex];
+                    const datasetLabel = dataset?.label ? ` (${dataset.label})` : '';
+                    const rawValue = dataset?.data?.[first.index];
+                    const value = formatValue(rawValue);
+                    openInfoModal(title || 'Chart Detail', `
+                        <div class="space-y-2">
+                            <div class="text-sm text-gray-700"><span class="font-semibold">Label:</span> ${escapeHtml(label)}</div>
+                            <div class="text-sm text-gray-700"><span class="font-semibold">Value${escapeHtml(datasetLabel)}:</span> ${escapeHtml(value)}</div>
+                            ${enableZoom ? '<div class="text-xs text-gray-500">Tip: scroll or drag to zoom, and double-click to reset zoom.</div>' : ''}
+                        </div>
+                    `);
+                }
+            };
+        }
+
+        function loadBookings() {
+            fetch('/admin/bookings')
+                .then(r => r.json())
+                .then(res => {
+                    if (!res.success) throw new Error(res.message || 'Failed');
+                    const rows = res.data.map(b => {
+                        const patient = b.pasien?.nama || 'Unknown';
+                        const email = b.pasien?.email || '-';
+                        const phone = b.pasien?.no_hp || '-';
+                        const testStatus = b.status_tes || '-';
+                        const date = b.tanggal_booking || '';
+                        const sesi = b.sesi || '';
+                        const branch = b.cabang?.nama_cabang || '-';
+                        const isConfirmed = String(testStatus).toLowerCase() === 'confirmed';
+                        const confirmBtn = isConfirmed
+                            ? `<span class=\"inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800\">Confirmed</span>`
+                            : `<button onclick=\"confirmBooking(${b.booking_id})\" class=\"ml-2 px-3 py-1 rounded-md text-white bg-primary-600 hover:bg-primary-700\">Confirm Booking</button>`;
+                        return `
+                            <tr>
+                                <td class=\"px-6 py-4 whitespace-nowrap text-sm text-gray-900\">${b.booking_id}</td>
+                                <td class=\"px-6 py-4 whitespace-nowrap text-sm text-gray-900\">${escapeHtml(patient)}</td>
+                                <td class=\"px-6 py-4 whitespace-nowrap text-sm text-gray-900\">${escapeHtml(email)}</td>
+                                <td class=\"px-6 py-4 whitespace-nowrap text-sm text-gray-900\">${escapeHtml(phone)}</td>
+                                <td class=\"px-6 py-4 whitespace-nowrap text-sm text-gray-900\">${escapeHtml(branch)}</td>
+                                <td class=\"px-6 py-4 whitespace-nowrap text-sm text-gray-900\">${escapeHtml(sesi || '-')}</td>
+                                <td class=\"px-6 py-4 whitespace-nowrap text-sm text-gray-900\">${escapeHtml(date)}</td>
+                                <td class=\"px-6 py-4 whitespace-nowrap text-sm text-gray-900\">${escapeHtml(testStatus)}</td>
+                                <td class=\"px-6 py-4 whitespace-nowrap text-right text-sm\">
+                                    ${confirmBtn}
+                                    <button onclick=\"editBooking(${b.booking_id}, '${escapeHtml(b.status_pembayaran || '')}', '${escapeHtml(testStatus)}', '${escapeHtml(date)}', '${escapeHtml(sesi)}')\" class=\"ml-2 px-3 py-1 rounded-md text-white bg-secondary-500 hover:bg-secondary-600\">Edit</button>
+                                    <button onclick=\"deleteBooking(${b.booking_id})\" class=\"ml-2 px-3 py-1 rounded-md text-white bg-red-600 hover:bg-red-700\">Delete</button>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
+                    el('booking-rows').innerHTML = rows || `<tr><td colspan=\"9\" class=\"px-6 py-4 text-center text-sm text-gray-500\">No bookings found</td></tr>`;
+                })
+                .catch(() => {
+                    el('booking-rows').innerHTML = `<tr><td colspan=\"9\" class=\"px-6 py-4 text-center text-sm text-gray-500\">Failed to load bookings</td></tr>`;
+                });
+        }
+
+        function loadPayments() {
+            fetch('/admin/payments')
+                .then(r => r.json())
+                .then(res => {
+                    if (!res.success) throw new Error(res.message || 'Failed');
+                    const rows = res.data.map(p => {
+                        const patient = p.booking?.pasien?.nama || 'Unknown';
+                        const proof = p.bukti_pembayaran || p.bukti_path;
+                        const proofBtn = proof ? `<button onclick=\"viewPaymentProof(${p.pembayaran_id})\" class=\"px-3 py-1 rounded-md text-white bg-primary-600 hover:bg-primary-700\">Proof</button>` : '-';
+                        const isVerified = String(p.status || '').toLowerCase() === 'confirmed';
+                        const verifyBtn = isVerified
+                            ? `<span class=\"inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800\">Verified</span>`
+                            : `<button onclick=\"verifyPayment(${p.pembayaran_id})\" class=\"px-3 py-1 rounded-md text-white bg-primary-600 hover:bg-primary-700\">Verify Payment</button>`;
+                        return `
+                            <tr>
+                                <td class=\"px-6 py-4 whitespace-nowrap text-sm text-gray-900\">${p.pembayaran_id}</td>
+                                <td class=\"px-6 py-4 whitespace-nowrap text-sm text-gray-900\">${p.booking_id}</td>
+                                <td class=\"px-6 py-4 whitespace-nowrap text-sm text-gray-900\">${escapeHtml(patient)}</td>
+                                <td class=\"px-6 py-4 whitespace-nowrap text-sm text-gray-900\">${escapeHtml(p.metode_bayar || '-')}</td>
+                                <td class=\"px-6 py-4 whitespace-nowrap text-sm text-gray-900\">${Number(p.jumlah || 0).toLocaleString('id-ID')}</td>
+                                <td class=\"px-6 py-4 whitespace-nowrap text-sm text-gray-900\">${escapeHtml(p.status)}</td>
+                                <td class=\"px-6 py-4 whitespace-nowrap text-sm\">${proofBtn}</td>
+                                <td class=\"px-6 py-4 whitespace-nowrap text-right text-sm\">
+                                    ${verifyBtn}
+                                    <button onclick=\"rejectPayment(${p.pembayaran_id})\" class=\"ml-2 px-3 py-1 rounded-md text-white bg-yellow-500 hover:bg-yellow-600\">Reject</button>
+                                    <button onclick=\"editPayment(${p.pembayaran_id}, '${escapeHtml(p.status)}', '${escapeHtml(p.metode_bayar)}', '${escapeHtml(p.jumlah)}')\" class=\"ml-2 px-3 py-1 rounded-md text-white bg-yellow-500 hover:bg-yellow-600\">Edit</button>
+                                    <button onclick=\"deletePayment(${p.pembayaran_id})\" class=\"ml-2 px-3 py-1 rounded-md text-white bg-red-600 hover:bg-red-700\">Delete</button>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
+                    el('payment-rows').innerHTML = rows || `<tr><td colspan=\"8\" class=\"px-6 py-4 text-center text-sm text-gray-500\">No payments found</td></tr>`;
+                })
+                .catch(() => {
+                    el('payment-rows').innerHTML = `<tr><td colspan=\"8\" class=\"px-6 py-4 text-center text-sm text-gray-500\">Failed to load payments</td></tr>`;
+                });
+        }
+
+        function destroyChart(key) {
+            if (charts[key]) {
+                charts[key].destroy();
+                delete charts[key];
+            }
+        }
+
+        function showAnalyticsError(message) {
+            const box = el('analytics-error');
+            if (!box) return;
+            box.textContent = message || 'Failed to load analytics.';
+            box.classList.remove('hidden');
+        }
+
+        function clearAnalyticsError() {
+            const box = el('analytics-error');
+            if (!box) return;
+            box.textContent = '';
+            box.classList.add('hidden');
+        }
+
+        function monthLabel(tahun, bulan) {
+            const b = String(bulan).padStart(2, '0');
+            return `${tahun}-${b}`;
+        }
+
+        function loadAnalytics() {
+            clearAnalyticsError();
+
+            fetch('/admin/analytics')
+                .then(r => r.json())
+                .then(res => {
+                    if (!res.success) {
+                        showAnalyticsError(res.message || 'Analytics not available.');
+                        return;
+                    }
+
+                    const data = res.data || {};
+
+                    const bookingPerBulan = (data.bookingPerBulan || []).map(x => ({
+                        label: monthLabel(x.tahun, x.bulan),
+                        value: Number(x.total_booking || 0),
+                    }));
+                    destroyChart('bookingBulanan');
+                    charts.bookingBulanan = new Chart(el('chart-booking-bulanan'), {
+                        type: 'line',
+                        data: {
+                            labels: bookingPerBulan.map(x => x.label),
+                            datasets: [{
+                                label: 'Total Booking',
+                                data: bookingPerBulan.map(x => x.value),
+                                borderColor: '#16a34a',
+                                backgroundColor: 'rgba(22,163,74,0.15)',
+                                tension: 0.3,
+                                fill: true,
+                            }]
+                        },
+                        options: makeInteractiveOptions({ title: 'Booking Trend (Monthly)', enableZoom: true, valueFormatter: formatNumberId })
+                    });
+                    attachResetZoom('chart-booking-bulanan', 'bookingBulanan');
+
+                    const bookingPerCabang = (data.bookingPerCabang || []).map(x => ({
+                        label: x.nama_cabang,
+                        value: Number(x.total_booking || 0),
+                    }));
+                    destroyChart('bookingCabang');
+                    charts.bookingCabang = new Chart(el('chart-booking-cabang'), {
+                        type: 'bar',
+                        data: {
+                            labels: bookingPerCabang.map(x => x.label),
+                            datasets: [{
+                                label: 'Bookings',
+                                data: bookingPerCabang.map(x => x.value),
+                                backgroundColor: '#16a34a',
+                            }]
+                        },
+                        options: makeInteractiveOptions({ title: 'Bookings by Branch', valueFormatter: formatNumberId })
+                    });
+
+                    const revPerKuartal = (data.revenuePerKuartal || []).map(x => ({
+                        label: `${x.tahun}-Q${x.kuartal}`,
+                        value: Number(x.total_pemasukan || 0),
+                    }));
+                    destroyChart('revenueKuartal');
+                    charts.revenueKuartal = new Chart(el('chart-revenue-kuartal'), {
+                        type: 'line',
+                        data: {
+                            labels: revPerKuartal.map(x => x.label),
+                            datasets: [{
+                                label: 'Total Pemasukan',
+                                data: revPerKuartal.map(x => x.value),
+                                borderColor: '#f59e0b',
+                                backgroundColor: 'rgba(245,158,11,0.15)',
+                                tension: 0.3,
+                                fill: true,
+                            }]
+                        },
+                        options: makeInteractiveOptions({ title: 'Revenue by Quarter', enableZoom: true, valueFormatter: formatRupiah })
+                    });
+                    attachResetZoom('chart-revenue-kuartal', 'revenueKuartal');
+
+                    const revPerCabang = (data.revenuePerCabang || []).map(x => ({
+                        label: x.nama_cabang,
+                        value: Number(x.total_pemasukan || 0),
+                    }));
+                    destroyChart('revenueCabang');
+                    charts.revenueCabang = new Chart(el('chart-revenue-cabang'), {
+                        type: 'bar',
+                        data: {
+                            labels: revPerCabang.map(x => x.label),
+                            datasets: [{
+                                label: 'Pemasukan',
+                                data: revPerCabang.map(x => x.value),
+                                backgroundColor: '#f59e0b',
+                            }]
+                        },
+                        options: makeInteractiveOptions({ title: 'Revenue by Branch', valueFormatter: formatRupiah })
+                    });
+
+                    const distribusiTes = (data.distribusiTes || []).map(x => ({
+                        label: x.nama_tes,
+                        value: Number(x.jumlah_tes || 0),
+                    }));
+                    destroyChart('distribusiTes');
+                    charts.distribusiTes = new Chart(el('chart-distribusi-tes'), {
+                        type: 'doughnut',
+                        data: {
+                            labels: distribusiTes.map(x => x.label),
+                            datasets: [{
+                                data: distribusiTes.map(x => x.value),
+                                backgroundColor: ['#16a34a','#22c55e','#4ade80','#f59e0b','#eab308','#facc15','#fde047','#f97316'],
+                            }]
+                        },
+                        options: makeInteractiveOptions({ title: 'Test Distribution', showLegend: true, legendPosition: 'bottom', valueFormatter: formatNumberId })
+                    });
+
+                    const trenTes = (data.trenTesPerBulan || []).map(x => ({
+                        label: monthLabel(x.tahun, x.bulan),
+                        value: Number(x.jumlah_tes || 0),
+                    }));
+                    destroyChart('trenTes');
+                    charts.trenTes = new Chart(el('chart-tren-tes'), {
+                        type: 'line',
+                        data: {
+                            labels: trenTes.map(x => x.label),
+                            datasets: [{
+                                label: 'Jumlah Tes',
+                                data: trenTes.map(x => x.value),
+                                borderColor: '#16a34a',
+                                backgroundColor: 'rgba(22,163,74,0.15)',
+                                tension: 0.3,
+                                fill: true,
+                            }]
+                        },
+                        options: makeInteractiveOptions({ title: 'Test Trend (Monthly)', enableZoom: true, valueFormatter: formatNumberId })
+                    });
+                    attachResetZoom('chart-tren-tes', 'trenTes');
+                })
+                .catch(() => {
+                    showAnalyticsError('Failed to load analytics. Check warehouse DB connection.');
+                });
+        }
 
         // Load tests dynamically
         function loadTests() {
@@ -191,7 +745,7 @@
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${test.deskripsi || 'No description'}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Rp${parseInt(test.harga).toLocaleString('id-ID')}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-right text-sm">
-                                <button onclick="editTest(${test.tes_id})" class="px-3 py-1 rounded-md text-white bg-primary-600 hover:bg-primary-700">Edit</button>
+                                <button onclick="editTest(${test.tes_id})" class="px-3 py-1 rounded-md text-white bg-secondary-500 hover:bg-secondary-600">Edit</button>
                                 <button onclick="deleteTest(${test.tes_id})" class="ml-2 px-3 py-1 rounded-md text-white bg-red-600 hover:bg-red-700">Delete</button>
                             </td>
                         </tr>
@@ -200,18 +754,183 @@
                 .catch(error => console.error('Error loading tests:', error));
         }
 
+        function loadResultBookings() {
+            fetch('/admin/test-results/bookings')
+                .then(r => r.json())
+                .then(res => {
+                    if (!res.success) throw new Error(res.message || 'Failed');
+                    const rows = (res.data || []).map(b => {
+                        const tests = (b.tests || []).map(t => t.nama_tes).join(', ');
+                        const has = b.has_result ? 'Available' : 'Not yet';
+                        const btnLabel = b.has_result ? 'Edit' : 'Input';
+                        return `
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${b.booking_id}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${escapeHtml(b.patient?.nama || 'Unknown')}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${escapeHtml(b.tanggal_booking || '')}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${escapeHtml(tests || '-') }</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${escapeHtml(has)}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm">
+                                    <button onclick="openResultEditor('${b.booking_id}')" class="px-3 py-1 rounded-md text-white bg-primary-600 hover:bg-primary-700">${btnLabel}</button>
+                                    <button onclick="deleteResult('${b.booking_id}')" class="ml-2 px-3 py-1 rounded-md text-white bg-red-600 hover:bg-red-700">Delete</button>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
+                    el('result-rows').innerHTML = rows || `<tr><td colspan="6" class="px-6 py-4 text-center text-sm text-gray-500">No bookings found</td></tr>`;
+                })
+                .catch(() => {
+                    el('result-rows').innerHTML = `<tr><td colspan="6" class="px-6 py-4 text-center text-sm text-gray-500">Failed to load results</td></tr>`;
+                });
+        }
+
+        function openResultEditor(bookingId) {
+            fetch(`/admin/test-results/${bookingId}`)
+                .then(r => r.json())
+                .then(res => {
+                    if (!res.success) throw new Error(res.message || 'Failed');
+                    const data = res.data || {};
+                    const tests = data.tests || [];
+                    const tanggal = data.hasil?.tanggal_input || '';
+
+                    const blocks = tests.map(t => {
+                        const rows = (t.parameters || []).map(p => {
+                            const val = p.nilai_hasil ?? '';
+                            const unit = p.satuan ? ` <span class="text-xs text-gray-500">(${escapeHtml(p.satuan)})</span>` : '';
+                            return `
+                                <div class="flex items-center justify-between gap-3 py-2 border-b border-gray-100">
+                                    <div class="text-sm text-gray-800">${escapeHtml(p.nama_parameter)}${unit}</div>
+                                    <input data-param-id="${p.param_id}" class="w-48 px-3 py-2 border rounded-md" value="${escapeHtml(val)}" placeholder="value" />
+                                </div>
+                            `;
+                        }).join('');
+
+                        return `
+                            <div class="border border-gray-200 rounded-lg p-3 mb-3">
+                                <div class="font-semibold text-gray-900 mb-2">${escapeHtml(t.nama_tes)}</div>
+                                <div>${rows || '<div class="text-sm text-gray-500">No parameters</div>'}</div>
+                            </div>
+                        `;
+                    }).join('');
+
+                    openModal(`Test Result - ${bookingId}`, `
+                        <label class="text-sm text-gray-700">Tanggal Input</label>
+                        <input id="r-date" type="date" class="w-full px-3 py-2 border rounded-md" value="${escapeHtml(String(tanggal).slice(0,10))}" />
+                        <div class="mt-3">${blocks || '<div class="text-sm text-gray-500">No tests found for this booking.</div>'}</div>
+                    `, () => {
+                        const values = {};
+                        document.querySelectorAll('#modal-form input[data-param-id]').forEach(inp => {
+                            const pid = inp.getAttribute('data-param-id');
+                            values[pid] = inp.value;
+                        });
+
+                        fetch(`/admin/test-results/${bookingId}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf },
+                            body: JSON.stringify({
+                                tanggal_input: el('r-date').value || null,
+                                values: values
+                            })
+                        })
+                        .then(async (r) => {
+                            const text = await r.text();
+                            try { return JSON.parse(text); } catch (e) { return { success: false, message: text || 'Failed to save test result' }; }
+                        })
+                        .then(saveRes => {
+                            alert(saveRes.message || (saveRes.success ? 'Saved' : 'Failed'));
+                            if (saveRes.success) {
+                                closeModal();
+                                loadResultBookings();
+                            }
+                        })
+                        .catch(() => alert('Failed to save test result'));
+                    });
+                })
+                .catch(() => alert('Failed to load result detail'));
+        }
+
+        function deleteResult(bookingId) {
+            if (!confirm('Delete test result for this booking?')) return;
+            fetch(`/admin/test-results/${bookingId}`, { method: 'DELETE', headers: { 'X-CSRF-TOKEN': csrf } })
+                .then(r => r.json())
+                .then(res => {
+                    alert(res.message || (res.success ? 'Deleted' : 'Failed'));
+                    if (res.success) loadResultBookings();
+                })
+                .catch(() => alert('Failed to delete test result'));
+        }
+
         function openModal(title, formHtml, onSubmit) {
             el('modal-title').textContent = title;
             el('modal-form').innerHTML = formHtml;
             el('modal').classList.remove('hidden');
+            el('modal-submit').textContent = 'Save';
             el('modal-cancel').onclick = () => el('modal').classList.add('hidden');
             el('modal-submit').onclick = (e) => { e.preventDefault(); onSubmit(); };
         }
 
+        function closeModal() {
+            el('modal').classList.add('hidden');
+        }
+
         // Test CRUD functions
         function editTest(id) {
-            // Implementation for editing test
-            console.log('Edit test:', id);
+            // Fetch test data first
+            fetch(`/admin/tests/${id}`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    const test = data.data;
+                    openModal('Edit Test', `
+                        <input id="t-name" class="w-full px-3 py-2 border rounded-md" placeholder="Test Name" value="${test.nama_tes}" required />
+                        <textarea id="t-description" class="w-full px-3 py-2 border rounded-md" placeholder="Description">${test.deskripsi || ''}</textarea>
+                        <input id="t-price" class="w-full px-3 py-2 border rounded-md" placeholder="Price" type="number" value="${test.harga}" required />
+                        <textarea id="t-preparation" class="w-full px-3 py-2 border rounded-md" placeholder="Special Preparation">${test.persiapan_khusus || ''}</textarea>
+                        <div class="flex gap-2">
+                            <button onclick="updateTest(${id})" class="flex-1 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700">Update Test</button>
+                            <button onclick="closeModal()" class="flex-1 px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700">Cancel</button>
+                        </div>
+                    `);
+                } else {
+                    alert('Failed to load test data');
+                }
+            })
+            .catch(() => alert('Failed to load test data'));
+        }
+
+        function updateTest(id) {
+            const name = el('t-name').value;
+            const description = el('t-description').value;
+            const price = el('t-price').value;
+            const preparation = el('t-preparation').value;
+
+            if (!name || !price) {
+                alert('Name and price are required');
+                return;
+            }
+
+            fetch(`/admin/tests/${id}`, {
+                method: 'PUT',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrf
+                },
+                body: JSON.stringify({
+                    nama_tes: name,
+                    deskripsi: description,
+                    harga: price,
+                    persiapan_khusus: preparation
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                alert(data.message || (data.success ? 'Test updated' : 'Update failed'));
+                if (data.success) {
+                    closeModal();
+                    loadTests();
+                }
+            })
+            .catch(() => alert('Update failed'));
         }
 
         function deleteTest(id) {
@@ -219,7 +938,7 @@
                 fetch(`/admin/tests/${id}`, {
                     method: 'DELETE',
                     headers: {
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                        'X-CSRF-TOKEN': csrf
                     }
                 })
                 .then(response => response.json())
@@ -238,9 +957,73 @@
             }
         }
 
-        function editBooking(id) {
-            // Implementation for editing booking
-            console.log('Edit booking:', id);
+        function editBooking(id, currentPayStatus = '', currentTestStatus = '', currentDate = '', currentSesi = '') {
+            openModal('Edit Booking', `
+                <label class="text-sm text-gray-700">Tanggal Booking</label>
+                <input id="b-date" type="date" class="w-full px-3 py-2 border rounded-md" />
+                <label class="text-sm text-gray-700">Sesi</label>
+                <input id="b-sesi" class="w-full px-3 py-2 border rounded-md" placeholder="(optional)" />
+                <label class="text-sm text-gray-700">Status Pembayaran</label>
+                <select id="b-pay" class="w-full px-3 py-2 border rounded-md">
+                    <option value="belum_bayar">belum_bayar</option>
+                    <option value="pending">pending</option>
+                    <option value="waiting_confirmation">waiting_confirmation</option>
+                    <option value="paid">paid</option>
+                    <option value="confirmed">confirmed</option>
+                    <option value="rejected">rejected</option>
+                    <option value="failed">failed</option>
+                </select>
+                <label class="text-sm text-gray-700">Status Tes</label>
+                <select id="b-test" class="w-full px-3 py-2 border rounded-md">
+                    <option value="menunggu">menunggu</option>
+                    <option value="pending_approval">pending_approval</option>
+                    <option value="scheduled">scheduled</option>
+                    <option value="approved">approved</option>
+                    <option value="in_progress">in_progress</option>
+                    <option value="completed">completed</option>
+                    <option value="cancelled">cancelled</option>
+                    <option value="confirmed">confirmed</option>
+                    <option value="rejected">rejected</option>
+                </select>
+            `, () => {
+                fetch(`/admin/bookings/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrf
+                    },
+                    body: JSON.stringify({
+                        tanggal_booking: el('b-date').value || null,
+                        sesi: el('b-sesi').value || null,
+                        status_pembayaran: el('b-pay').value,
+                        status_tes: el('b-test').value
+                    })
+                })
+                .then(r => r.json())
+                .then(data => {
+                    alert(data.message || (data.success ? 'Booking updated' : 'Update failed'));
+                    if (data.success) {
+                        closeModal();
+                        loadBookings();
+                    }
+                })
+                .catch(() => alert('Update failed'));
+            });
+
+            if (currentDate) {
+                try {
+                    el('b-date').value = String(currentDate).slice(0, 10);
+                } catch (e) {}
+            }
+            if (currentSesi) {
+                el('b-sesi').value = currentSesi;
+            }
+            if (currentPayStatus) {
+                el('b-pay').value = currentPayStatus;
+            }
+            if (currentTestStatus) {
+                el('b-test').value = currentTestStatus;
+            }
         }
 
         function deleteBooking(id) {
@@ -248,13 +1031,13 @@
                 fetch(`/admin/bookings/${id}`, {
                     method: 'DELETE',
                     headers: {
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                        'X-CSRF-TOKEN': csrf
                     }
                 })
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        location.reload();
+                        loadBookings();
                     } else {
                         alert('Failed to delete booking');
                     }
@@ -266,17 +1049,103 @@
             }
         }
 
-        function verifyPayment(id) {
-            fetch(`/admin/bookings/${id}/approve-payment`, {
+        function viewPaymentProof(id) {
+            fetch(`/admin/payments/${id}/proof`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.success && data.data.proof_url) {
+                    // Open payment proof in new window
+                    window.open(data.data.proof_url, '_blank');
+                } else {
+                    alert('Payment proof not found');
+                }
+            })
+            .catch(() => alert('Failed to load payment proof'));
+        }
+
+        function confirmBooking(id) {
+            fetch(`/admin/bookings/${id}/approve`, {
                 method: 'POST',
-                headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') }
+                headers: { 'X-CSRF-TOKEN': csrf }
             })
             .then(r => r.json())
             .then(data => {
-                alert(data.message || (data.success ? 'Payment verified' : 'Verification failed'));
-                if (data.success) location.reload();
+                alert(data.message || (data.success ? 'Booking confirmed' : 'Failed'));
+                if (data.success) loadBookings();
             })
-            .catch(() => alert('Verification failed'));
+            .catch(() => alert('Failed'));
+        }
+
+        function verifyPayment(id) {
+            fetch(`/admin/payments/${id}/confirm`, { method: 'POST', headers: { 'X-CSRF-TOKEN': csrf } })
+                .then(r => r.json())
+                .then(data => {
+                    alert(data.message || (data.success ? 'Payment verified' : 'Failed'));
+                    if (data.success) loadPayments();
+                })
+                .catch(() => alert('Failed'));
+        }
+
+        function rejectPayment(id) {
+            openModal('Reject Payment', `
+                <textarea id="p-reason" class="w-full px-3 py-2 border rounded-md" placeholder="Reason" required></textarea>
+            `, () => {
+                fetch(`/admin/payments/${id}/reject`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf },
+                    body: JSON.stringify({ reason: el('p-reason').value })
+                })
+                .then(r => r.json())
+                .then(data => {
+                    alert(data.message || (data.success ? 'Payment rejected' : 'Failed'));
+                    if (data.success) { closeModal(); loadPayments(); }
+                })
+                .catch(() => alert('Failed'));
+            });
+        }
+
+        function editPayment(id, status, metode, jumlah) {
+            openModal('Edit Payment', `
+                <label class="text-sm text-gray-700">Status</label>
+                <input id="p-status" class="w-full px-3 py-2 border rounded-md" value="${escapeHtml(status)}" />
+                <label class="text-sm text-gray-700">Method</label>
+                <input id="p-method" class="w-full px-3 py-2 border rounded-md" value="${escapeHtml(metode)}" />
+                <label class="text-sm text-gray-700">Amount</label>
+                <input id="p-amount" type="number" class="w-full px-3 py-2 border rounded-md" value="${escapeHtml(jumlah)}" />
+                <label class="text-sm text-gray-700">Tanggal Bayar</label>
+                <input id="p-date" type="date" class="w-full px-3 py-2 border rounded-md" />
+                <label class="text-sm text-gray-700">Alasan Reject</label>
+                <textarea id="p-reason" class="w-full px-3 py-2 border rounded-md" placeholder="(optional)"></textarea>
+            `, () => {
+                fetch(`/admin/payments/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf },
+                    body: JSON.stringify({
+                        status: el('p-status').value,
+                        metode_bayar: el('p-method').value,
+                        jumlah: el('p-amount').value
+                        ,tanggal_bayar: el('p-date').value || null
+                        ,alasan_reject: el('p-reason').value || null
+                    })
+                })
+                .then(r => r.json())
+                .then(data => {
+                    alert(data.message || (data.success ? 'Payment updated' : 'Failed'));
+                    if (data.success) { closeModal(); loadPayments(); }
+                })
+                .catch(() => alert('Failed'));
+            });
+        }
+
+        function deletePayment(id) {
+            if (!confirm('Delete this payment?')) return;
+            fetch(`/admin/payments/${id}`, { method: 'DELETE', headers: { 'X-CSRF-TOKEN': csrf } })
+                .then(r => r.json())
+                .then(data => {
+                    alert(data.message || (data.success ? 'Deleted' : 'Failed'));
+                    if (data.success) loadPayments();
+                })
+                .catch(() => alert('Failed'));
         }
 
         // Add test functionality
@@ -320,13 +1189,19 @@
         });
 
         // Refresh buttons
-        el('refresh-bookings').addEventListener('click', () => location.reload());
+        el('refresh-bookings').addEventListener('click', () => loadBookings());
+        el('refresh-payments').addEventListener('click', () => loadPayments());
         el('refresh-tests').addEventListener('click', () => loadTests());
+        el('refresh-results').addEventListener('click', () => loadResultBookings());
+        el('refresh-analytics').addEventListener('click', () => loadAnalytics());
 
         // Load tests when tests tab is clicked
         el('tab-tests').addEventListener('click', () => {
             loadTests();
         });
+
+        // Initial load for bookings
+        loadBookings();
     </script>
 </body>
 </html>

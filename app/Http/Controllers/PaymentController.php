@@ -6,7 +6,10 @@ use Illuminate\Http\Request;
 use App\Models\Booking;
 use App\Models\Pembayaran;
 use App\Models\Pasien;
+use App\Models\Cabang;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class PaymentController extends Controller
@@ -18,12 +21,12 @@ class PaymentController extends Controller
     {
         // Check if user is logged in
         if (!session()->has('user_id')) {
-            return redirect()->route('auth')->withErrors(['error' => 'Please login to access payment page.']);
+            return redirect()->route('auth')->with('error', 'Please login to access payment page.');
         }
 
         $bookingId = $request->get('booking_id');
         if (!$bookingId) {
-            return redirect()->route('myorder')->withErrors(['error' => 'Booking ID is required.']);
+            return redirect()->route('myorder')->with('error', 'Booking ID is required.');
         }
 
         try {
@@ -36,22 +39,66 @@ class PaymentController extends Controller
             $userId = session('user_id');
             $pasien = Pasien::where('user_id', $userId)->first();
             if (!$pasien || $booking->pasien_id !== $pasien->pasien_id) {
-                return redirect()->route('myorder')->withErrors(['error' => 'Unauthorized access to booking.']);
+                return redirect()->route('myorder')->with('error', 'Unauthorized access to booking.');
             }
 
             // Check if payment already exists
             if (!$booking->pembayaran) {
-                return redirect()->route('myorder')->withErrors(['error' => 'Payment record not found.']);
+                return redirect()->route('myorder')->with('error', 'Payment record not found.');
             }
 
             // Generate payment details based on method
             $paymentDetails = $this->generatePaymentDetails($booking->pembayaran);
 
-            return view('payment', compact('booking', 'paymentDetails'));
+            if (isset($booking->cabang) && $booking->cabang) {
+                $branchLabelById = Cabang::orderBy('cabang_id')
+                    ->pluck('cabang_id')
+                    ->values()
+                    ->mapWithKeys(function ($cabangId, $idx) {
+                        return [$cabangId => 'Cabang ' . chr(65 + $idx)];
+                    });
+                $label = $branchLabelById[$booking->cabang_id] ?? null;
+                if ($label) {
+                    $booking->cabang->display_name = $label;
+                }
+            }
+
+            $sesiNumber = $booking->sesi ?? $request->query('sesi') ?? $request->get('sesi') ?? session('booking_sesi_' . $bookingId);
+            if ($sesiNumber) {
+                session(['booking_sesi_' . $bookingId => $sesiNumber]);
+
+                try {
+                    \App\Models\LogActivity::create([
+                        'user_id' => session('user_id'),
+                        'action' => 'booking_sesi:' . $sesiNumber . ';booking_id:' . $bookingId,
+                        'resource_type' => 'booking',
+                        'created_at' => now(),
+                    ]);
+                } catch (\Exception $e) {
+                    \App\Models\LogActivity::create([
+                        'user_id' => session('user_id'),
+                        'action' => 'booking_sesi:' . $sesiNumber . ';booking_id:' . $bookingId,
+                        'created_at' => now(),
+                    ]);
+                }
+            }
+
+            $sesiLabel = null;
+            $sesiMap = [
+                1 => 'Sesi 1 (08:00-10:00)',
+                2 => 'Sesi 2 (10:00-12:00)',
+                3 => 'Sesi 3 (13:00-15:00)',
+                4 => 'Sesi 4 (15:00-17:00)',
+            ];
+            if ($sesiNumber && isset($sesiMap[(int) $sesiNumber])) {
+                $sesiLabel = $sesiMap[(int) $sesiNumber];
+            }
+
+            return view('payment', compact('booking', 'paymentDetails', 'sesiLabel', 'sesiNumber'));
 
         } catch (\Exception $e) {
             \Log::error('Payment page error', ['error' => $e->getMessage(), 'booking_id' => $bookingId]);
-            return redirect()->route('myorder')->withErrors(['error' => 'Payment page not found.']);
+            return redirect()->route('myorder')->with('error', 'Payment page not found.');
         }
     }
 
@@ -83,7 +130,7 @@ class PaymentController extends Controller
             $details['qr_code'] = 'data:image/svg+xml;base64,' . base64_encode($this->generateQRCode($pembayaran->jumlah));
             $details['instructions'] = [
                 '1. Buka aplikasi ' . $details['ewallet_name'],
-                '2. Scan QR code di atas atau transfer ke nomor: ' . $details['ewallet_number'],
+                '2. Transfer ke nomor: ' . $details['ewallet_number'],
                 '3. Jumlah yang harus ditransfer: Rp ' . number_format($pembayaran->jumlah, 0, ',', '.'),
                 '4. Upload bukti transfer setelah melakukan pembayaran'
             ];
@@ -112,7 +159,7 @@ class PaymentController extends Controller
     {
         // Check if user is logged in
         if (!session()->has('user_id')) {
-            return redirect()->route('auth')->withErrors(['error' => 'Please login to upload payment proof.']);
+            return redirect()->route('auth')->with('error', 'Please login to upload payment proof.');
         }
 
         $validated = $request->validate([
@@ -131,12 +178,12 @@ class PaymentController extends Controller
             $userId = session('user_id');
             $pasien = Pasien::where('user_id', $userId)->first();
             if (!$pasien || $booking->pasien_id !== $pasien->pasien_id) {
-                return redirect()->route('myorder')->withErrors(['error' => 'Unauthorized access to booking.']);
+                return redirect()->route('myorder', ['tab' => 'current'])->with('error', 'Unauthorized access to booking.');
             }
 
             // Check if payment exists
             if (!$booking->pembayaran) {
-                return redirect()->route('myorder')->withErrors(['error' => 'Payment record not found.']);
+                return redirect()->route('myorder', ['tab' => 'current'])->with('error', 'Payment record not found.');
             }
 
             // Store payment proof
@@ -145,16 +192,95 @@ class PaymentController extends Controller
             $filePath = $file->storeAs('payment_proofs', $fileName, 'public');
 
             // Update payment record
-            $booking->pembayaran->update([
-                'bukti_pembayaran' => $filePath,
-                'status' => 'waiting_confirmation',
-                'tanggal_upload' => now(),
-            ]);
+            $pembayaran = $booking->pembayaran;
+            $paymentId = $pembayaran->getKey();
+            $updated = false;
+
+            try {
+                Pembayaran::where('pembayaran_id', $paymentId)->update([
+                    'bukti_pembayaran' => $filePath,
+                    'status' => 'waiting_confirmation',
+                    'tanggal_upload' => now(),
+                ]);
+                $updated = true;
+            } catch (QueryException $qe) {
+                if (stripos($qe->getMessage(), 'Unknown column') === false) {
+                    throw $qe;
+                }
+            }
+
+            if (!$updated) {
+                try {
+                    Pembayaran::where('pembayaran_id', $paymentId)->update([
+                        'bukti_pembayaran' => $filePath,
+                        'status' => 'waiting_confirmation',
+                    ]);
+                    $updated = true;
+                } catch (QueryException $qe) {
+                    if (stripos($qe->getMessage(), 'Unknown column') === false) {
+                        throw $qe;
+                    }
+                }
+            }
+
+            if (!$updated) {
+                try {
+                    Pembayaran::where('pembayaran_id', $paymentId)->update([
+                        'bukti_path' => $filePath,
+                        'status' => 'waiting_confirmation',
+                        'tanggal_upload' => now(),
+                    ]);
+                    $updated = true;
+                } catch (QueryException $qe) {
+                    if (stripos($qe->getMessage(), 'Unknown column') === false) {
+                        throw $qe;
+                    }
+                }
+            }
+
+            if (!$updated) {
+                try {
+                    Pembayaran::where('pembayaran_id', $paymentId)->update([
+                        'bukti_path' => $filePath,
+                        'status' => 'waiting_confirmation',
+                    ]);
+                    $updated = true;
+                } catch (QueryException $qe) {
+                    if (stripos($qe->getMessage(), 'Unknown column') === false) {
+                        throw $qe;
+                    }
+                }
+            }
+
+            if (!$updated) {
+                Pembayaran::where('pembayaran_id', $paymentId)->update([
+                    'status' => 'waiting_confirmation',
+                ]);
+            }
 
             // Update booking status
             $booking->update([
                 'status_pembayaran' => 'waiting_confirmation'
             ]);
+
+            $sesiNumber = $request->get('sesi');
+            if ($sesiNumber) {
+                session(['booking_sesi_' . $bookingId => $sesiNumber]);
+                try {
+                    \App\Models\LogActivity::create([
+                        'user_id' => session('user_id'),
+                        'action' => 'booking_sesi:' . $sesiNumber . ';booking_id:' . $bookingId,
+                        'resource_type' => 'booking',
+                        'created_at' => now(),
+                    ]);
+                } catch (\Exception $e) {
+                    \App\Models\LogActivity::create([
+                        'user_id' => session('user_id'),
+                        'action' => 'booking_sesi:' . $sesiNumber . ';booking_id:' . $bookingId,
+                        'created_at' => now(),
+                    ]);
+                }
+            }
 
             // Log activity
             \App\Models\LogActivity::create([
@@ -165,12 +291,12 @@ class PaymentController extends Controller
 
             DB::commit();
 
-            return redirect()->route('myorder')->with('success', 'Bukti pembayaran berhasil diupload! Menunggu konfirmasi admin.');
+            return redirect()->route('myorder', ['tab' => 'current'])->with('success', 'Bukti pembayaran berhasil diupload! Menunggu konfirmasi admin.');
 
         } catch (\Exception $e) {
             DB::rollBack();
             \Log::error('Payment proof upload failed', ['error' => $e->getMessage(), 'booking_id' => $bookingId]);
-            return back()->withErrors(['error' => 'Gagal mengupload bukti pembayaran: ' . $e->getMessage()]);
+            return back()->with('error', 'Gagal mengupload bukti pembayaran: ' . $e->getMessage());
         }
     }
 

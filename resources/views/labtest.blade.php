@@ -37,6 +37,9 @@
                     <a href="{{ route('labtest') }}" class="border-primary-500 text-gray-900 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
                         <i data-feather="flask" class="mr-2 text-green-600"></i> Lab Test
                     </a>
+                    <a href="{{ route('result') }}" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                        <i data-feather="clipboard" class="mr-2"></i> Test Result
+                    </a>
                     <a href="{{ route('myorder') }}" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
                         <i data-feather="shopping-bag" class="mr-2"></i> My Order
                     </a>
@@ -45,9 +48,6 @@
                 @if(session()->has('user_id'))
                     <div class="flex items-center space-x-4">
                         <span class="text-gray-700">Welcome, {{ session('username') }}</span>
-                        <a href="{{ route('myorder') }}" class="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
-                            <i data-feather="shopping-bag" class="mr-1"></i> My Orders
-                        </a>
                         <form method="POST" action="{{ route('logout') }}" class="inline">
                             @csrf
                             <button type="submit" class="text-white px-4 py-2 rounded-md text-sm font-medium bg-red-500 hover:bg-red-600">
@@ -57,7 +57,7 @@
                     </div>
                 @else
                     <div class="flex items-center space-x-2">
-                    <a href="{{ route('auth') }}" class="text-white px-4 py-2 rounded-md text-sm font-medium flex items-center bg-gradient-to-r from-green-500 to-yellow-400 hover:from-green-600 hover:to-yellow-500">
+                    <a href="{{ route('auth') }}" class="text-white px-4 py-2 rounded-md text-sm font-medium flex items-center bg-green-600 hover:bg-green-700">
                         <i data-feather="user" class="mr-2"></i> Sign In
                     </a>
                     </div>
@@ -140,9 +140,12 @@
                                     </span>
                                 @endif
                             </div>
-                            <a href="{{ route('booking', ['test_id' => $test->tes_id]) }}" class="mt-6 w-full flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gradient-to-r from-green-500 to-yellow-400 hover:from-green-600 hover:to-yellow-500">
-                                Book Now
-                            </a>
+                            <form action="{{ route('booking') }}" method="GET" class="w-full">
+                                <input type="hidden" name="test_id" value="{{ $test->tes_id }}">
+                                <button type="submit" class="mt-6 w-full flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700">
+                                    Book Now
+                                </button>
+                            </form>
                         </div>
                     </div>
                     @empty
@@ -293,9 +296,12 @@
                                         </span>
                                     ` : ''}
                                 </div>
-                                <a href="/booking?test_id=${test.tes_id}" class="mt-6 w-full flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gradient-to-r from-green-500 to-yellow-400 hover:from-green-600 hover:to-yellow-500">
-                                    Book Now
-                                </a>
+                                <form action="{{ route('booking') }}" method="GET" class="w-full">
+                                    <input type="hidden" name="test_id" value="${test.tes_id ?? test.id}">
+                                    <button type="submit" class="mt-6 w-full flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700">
+                                        Book Now
+                                    </button>
+                                </form>
                             </div>
                         </div>
                     `).join('');

@@ -74,6 +74,9 @@
                     <a href="{{ route('labtest') }}" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
                         <i data-feather="flask" class="mr-2"></i> Lab Test
                     </a>
+                    <a href="{{ route('result') }}" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                        <i data-feather="clipboard" class="mr-2"></i> Test Result
+                    </a>
                     <a href="{{ route('myorder') }}" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
                         <i data-feather="shopping-bag" class="mr-2"></i> My Order
                     </a>
@@ -82,9 +85,6 @@
                 @if(session()->has('user_id'))
                     <div class="flex items-center space-x-4">
                         <span class="text-gray-700">Welcome, {{ session('username') }}</span>
-                        <a href="{{ route('myorder') }}" class="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
-                            <i data-feather="shopping-bag" class="mr-1"></i> My Orders
-                        </a>
                         <form method="POST" action="{{ route('logout') }}" class="inline">
                             @csrf
                             <button type="submit" class="text-white px-4 py-2 rounded-md text-sm font-medium bg-red-500 hover:bg-red-600">
@@ -94,7 +94,7 @@
                     </div>
                 @else
                     <div class="flex items-center space-x-2">
-                        <a href="{{ route('auth') }}" class="text-white px-4 py-2 rounded-md text-sm font-medium flex items-center bg-gradient-to-r from-green-500 to-yellow-400 hover:from-green-600 hover:to-yellow-500">
+                        <a href="{{ route('auth') }}" class="text-white px-4 py-2 rounded-md text-sm font-medium flex items-center bg-green-600 hover:bg-green-700">
                             <i data-feather="user" class="mr-2"></i> Sign In
                         </a>
                     </div>
@@ -147,9 +147,9 @@
                             <p class="mt-5 text-base text-gray-500">
                                 Our AI analyzes your symptoms and recommends the most appropriate tests for your condition.
                             </p>
-                            <a href="{{ route('labtest') }}" class="mt-6 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700">
-                                Try Now
-                                <i data-feather="arrow-right" class="ml-2"></i>
+                            <button onclick="showComingSoon()" class="mt-6 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gray-400 hover:bg-gray-500 cursor-not-allowed">
+                                Coming Soon
+                                <i data-feather="clock" class="ml-2"></i>
                             </a>
                         </div>
                     </div>
@@ -254,7 +254,7 @@
                         </div>
                         <div class="md:col-span-2">
                             <iframe id="mapFrame" class="w-full h-96 border-0"
-                                src="https://www.google.com/maps?q=Kampus+A+UNAIR,+Jl.+Prof.+DR.+Moestopo+No.47,+Surabaya&output=embed"
+                                src="https://www.google.com/maps?q=Cabang+A,+Jl.+Prof.+DR.+Moestopo+No.47,+Surabaya&output=embed"
                                 allowfullscreen loading="lazy"></iframe>
                         </div>
                     </div>
@@ -296,6 +296,16 @@
             </div>
         </div>
     </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            feather.replace();
+        });
+
+        function showComingSoon() {
+            alert('Coming Soon! Our AI recommendation feature will be available soon.');
+        }
+    </script>
 
     <script>
         AOS.init();
@@ -353,7 +363,7 @@
             var mapFrame = document.getElementById('mapFrame');
             if (!mapFrame) return;
             if (branch === 'cabangA') {
-                mapFrame.src = 'https://www.google.com/maps?q=Kampus+A+UNAIR,+Jl.+Prof.+DR.+Moestopo+No.47,+Surabaya&output=embed';
+                mapFrame.src = 'https://www.google.com/maps?q=Cabang+A,+Jl.+Prof.+DR.+Moestopo+No.47,+Surabaya&output=embed';
             } else if (branch === 'cabangB') {
                 mapFrame.src = 'https://www.google.com/maps?q=Jl.+Airlangga+No.4-6,+Surabaya&output=embed';
             } else if (branch === 'cabangC') {

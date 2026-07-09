@@ -12,6 +12,7 @@ use App\Models\HasilTesHeader;
 use App\Models\HasilTesValue;
 use App\Models\ParameterTes;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class AdminController extends Controller
 {
@@ -77,12 +78,18 @@ class AdminController extends Controller
     public function updateBooking(Request $request, $id)
     {
         $validated = $request->validate([
-            'status_pembayaran' => 'in:pending,paid,failed',
-            'status_tes' => 'in:scheduled,in_progress,completed,cancelled'
+            'tanggal_booking' => 'sometimes|nullable|date',
+            'sesi' => 'sometimes|nullable|string|max:50',
+            'status_pembayaran' => 'sometimes|nullable|in:belum_bayar,pending,waiting_confirmation,paid,confirmed,rejected,failed',
+            'status_tes' => 'sometimes|nullable|in:menunggu,pending_approval,scheduled,approved,in_progress,completed,cancelled,confirmed,rejected'
         ]);
 
         try {
             $booking = Booking::findOrFail($id);
+
+            if (!Schema::hasColumn('booking', 'sesi')) {
+                unset($validated['sesi']);
+            }
             $booking->update($validated);
             
             return response()->json(['success' => true, 'message' => 'Booking updated successfully']);
@@ -122,14 +129,34 @@ class AdminController extends Controller
     public function approvePayment($id)
     {
         try {
+            DB::beginTransaction();
+            
             $booking = Booking::with('pembayaran')->findOrFail($id);
             if (!$booking->pembayaran) {
                 return response()->json(['success' => false, 'message' => 'No payment found']);
             }
-            $booking->pembayaran->update(['status' => 'verified']);
-            return response()->json(['success' => true, 'message' => 'Payment verified']);
+            
+            // Update payment status
+            $booking->pembayaran->update([
+                'status' => 'confirmed',
+                'tanggal_konfirmasi' => now(),
+            ]);
+            
+            // Update booking payment status
+            $booking->update(['status_pembayaran' => 'confirmed']);
+            
+            // Log activity
+            \App\Models\LogActivity::create([
+                'user_id' => session('user_id'),
+                'action' => 'Payment verified for booking ID: ' . $booking->booking_id,
+                'created_at' => now(),
+            ]);
+            
+            DB::commit();
+            return response()->json(['success' => true, 'message' => 'Payment verified successfully']);
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => 'Verification failed']);
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => 'Verification failed: ' . $e->getMessage()]);
         }
     }
 
@@ -143,6 +170,19 @@ class AdminController extends Controller
             return response()->json($tests);
         } catch (\Exception $e) {
             return response()->json([]);
+        }
+    }
+
+    /**
+     * Get single test for editing
+     */
+    public function getTest($id)
+    {
+        try {
+            $test = JenisTes::findOrFail($id);
+            return response()->json(['success' => true, 'data' => $test]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Test not found']);
         }
     }
 
@@ -182,6 +222,206 @@ class AdminController extends Controller
             return response()->json(['success' => true, 'parameter' => $param]);
         } catch (\Exception $e) {
             return response()->json(['success' => false]);
+        }
+    }
+
+    public function getResultBookings(Request $request)
+    {
+        try {
+            $q = Booking::with(['pasien', 'jenisTes', 'hasilTesHeader'])
+                ->orderBy('tanggal_booking', 'desc');
+
+            if ($request->filled('status_tes')) {
+                $q->where('status_tes', $request->get('status_tes'));
+            }
+            if ($request->filled('status_pembayaran')) {
+                $q->where('status_pembayaran', $request->get('status_pembayaran'));
+            }
+
+            $bookings = $q->get()->map(function ($b) {
+                $hasResult = ($b->hasilTesHeader && $b->hasilTesHeader->count() > 0);
+                return [
+                    'booking_id' => $b->booking_id,
+                    'tanggal_booking' => $b->tanggal_booking,
+                    'patient' => [
+                        'pasien_id' => optional($b->pasien)->pasien_id,
+                        'nama' => optional($b->pasien)->nama,
+                    ],
+                    'status_pembayaran' => $b->status_pembayaran,
+                    'status_tes' => $b->status_tes,
+                    'tests' => ($b->jenisTes ?? collect())->map(function ($t) {
+                        return [
+                            'tes_id' => $t->tes_id,
+                            'nama_tes' => $t->nama_tes,
+                        ];
+                    })->values(),
+                    'has_result' => $hasResult,
+                ];
+            });
+
+            return response()->json(['success' => true, 'data' => $bookings]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Failed to fetch result bookings']);
+        }
+    }
+
+    public function getResultDetail($bookingId)
+    {
+        try {
+            $booking = Booking::with(['pasien', 'jenisTes', 'hasilTesHeader.detailHasil.parameter'])
+                ->where('booking_id', $bookingId)
+                ->firstOrFail();
+
+            $headers = $booking->hasilTesHeader ?? collect();
+            $existingValues = collect();
+            foreach ($headers as $h) {
+                foreach ($h->detailHasil as $v) {
+                    $existingValues->put((string) $v->param_id, $v->nilai_hasil);
+                }
+            }
+
+            $tests = ($booking->jenisTes ?? collect())->map(function ($t) use ($existingValues) {
+                $params = ParameterTes::where('tes_id', $t->tes_id)->orderBy('param_id')->get()->map(function ($p) use ($existingValues) {
+                    $pid = (string) $p->param_id;
+                    return [
+                        'param_id' => $p->param_id,
+                        'nama_parameter' => $p->nama_parameter,
+                        'satuan' => $p->satuan,
+                        'nilai_hasil' => $existingValues->get($pid),
+                    ];
+                })->values();
+
+                return [
+                    'tes_id' => $t->tes_id,
+                    'nama_tes' => $t->nama_tes,
+                    'parameters' => $params,
+                ];
+            })->values();
+
+            $headerId = optional($headers->first())->hasil_id;
+            $tanggalInput = optional($headers->first())->tanggal_input;
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'booking' => [
+                        'booking_id' => $booking->booking_id,
+                        'tanggal_booking' => $booking->tanggal_booking,
+                        'status_pembayaran' => $booking->status_pembayaran,
+                        'status_tes' => $booking->status_tes,
+                        'pasien' => [
+                            'pasien_id' => optional($booking->pasien)->pasien_id,
+                            'nama' => optional($booking->pasien)->nama,
+                        ],
+                    ],
+                    'hasil' => [
+                        'hasil_id' => $headerId,
+                        'tanggal_input' => $tanggalInput,
+                    ],
+                    'tests' => $tests,
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Failed to fetch result detail']);
+        }
+    }
+
+    public function saveResult(Request $request, $bookingId)
+    {
+        $validated = $request->validate([
+            'tanggal_input' => 'nullable|date',
+            'values' => 'present|array',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $booking = Booking::with(['jenisTes'])
+                ->where('booking_id', $bookingId)
+                ->firstOrFail();
+
+            $tesIds = ($booking->jenisTes ?? collect())->pluck('tes_id')->values();
+            $allowedParamIds = ParameterTes::whereIn('tes_id', $tesIds)->pluck('param_id')->map(function ($id) {
+                return (string) $id;
+            })->unique()->values();
+
+            $header = HasilTesHeader::where('booking_id', $bookingId)->orderBy('hasil_id', 'desc')->first();
+            if (!$header) {
+                $header = HasilTesHeader::create([
+                    'booking_id' => $bookingId,
+                    'dibuat_oleh' => session('user_id'),
+                    'tanggal_input' => $validated['tanggal_input'] ?? now()->toDateString(),
+                ]);
+            } else {
+                $header->update([
+                    'dibuat_oleh' => session('user_id'),
+                    'tanggal_input' => $validated['tanggal_input'] ?? ($header->tanggal_input ?? now()->toDateString()),
+                ]);
+            }
+
+            foreach ($validated['values'] as $paramId => $value) {
+                $pid = (string) $paramId;
+                if (!$allowedParamIds->contains($pid)) {
+                    continue;
+                }
+
+                $existing = HasilTesValue::where('hasil_id', $header->hasil_id)
+                    ->where('param_id', $paramId)
+                    ->first();
+
+                if ($existing) {
+                    $existing->update(['nilai_hasil' => $value]);
+                } else {
+                    HasilTesValue::create([
+                        'hasil_id' => $header->hasil_id,
+                        'param_id' => $paramId,
+                        'nilai_hasil' => $value,
+                    ]);
+                }
+            }
+
+            try {
+                $booking->update(['status_tes' => 'completed']);
+            } catch (\Exception $e) {
+                // ignore
+            }
+
+            LogActivity::create([
+                'user_id' => session('user_id'),
+                'action' => 'Uploaded test result for booking ID: ' . $bookingId,
+                'created_at' => now(),
+            ]);
+
+            DB::commit();
+            return response()->json(['success' => true, 'message' => 'Test result saved successfully']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => 'Failed to save test result: ' . $e->getMessage()]);
+        }
+    }
+
+    public function deleteResult($bookingId)
+    {
+        try {
+            DB::beginTransaction();
+
+            $headers = HasilTesHeader::where('booking_id', $bookingId)->get();
+            foreach ($headers as $h) {
+                HasilTesValue::where('hasil_id', $h->hasil_id)->delete();
+                $h->delete();
+            }
+
+            LogActivity::create([
+                'user_id' => session('user_id'),
+                'action' => 'Deleted test result for booking ID: ' . $bookingId,
+                'created_at' => now(),
+            ]);
+
+            DB::commit();
+            return response()->json(['success' => true, 'message' => 'Test result deleted']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => 'Failed to delete test result']);
         }
     }
 
@@ -336,7 +576,7 @@ class AdminController extends Controller
             
             $booking = Booking::findOrFail($id);
             $booking->update([
-                'status_tes' => 'approved'
+                'status_tes' => 'confirmed'
             ]);
 
             LogActivity::create([
@@ -347,10 +587,10 @@ class AdminController extends Controller
 
             DB::commit();
             
-            return response()->json(['success' => true, 'message' => 'Booking approved successfully']);
+            return response()->json(['success' => true, 'message' => 'Booking confirmed successfully']);
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['success' => false, 'message' => 'Failed to approve booking']);
+            return response()->json(['success' => false, 'message' => 'Failed to confirm booking']);
         }
     }
 
@@ -416,12 +656,14 @@ class AdminController extends Controller
     {
         try {
             $payment = Pembayaran::with(['booking.pasien'])->findOrFail($id);
+
+            $proofPath = $payment->bukti_pembayaran ?? ($payment->bukti_path ?? null);
             
             return response()->json([
                 'success' => true, 
                 'data' => [
                     'payment' => $payment,
-                    'proof_url' => $payment->bukti_pembayaran ? asset('storage/' . $payment->bukti_pembayaran) : null
+                    'proof_url' => $proofPath ? asset('storage/' . $proofPath) : null
                 ]
             ]);
         } catch (\Exception $e) {
@@ -445,8 +687,7 @@ class AdminController extends Controller
             ]);
 
             $payment->booking->update([
-                'status_pembayaran' => 'confirmed',
-                'status_tes' => 'confirmed'
+                'status_pembayaran' => 'confirmed'
             ]);
 
             LogActivity::create([
@@ -457,10 +698,10 @@ class AdminController extends Controller
 
             DB::commit();
             
-            return response()->json(['success' => true, 'message' => 'Payment confirmed successfully']);
+            return response()->json(['success' => true, 'message' => 'Payment verified successfully']);
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['success' => false, 'message' => 'Failed to confirm payment']);
+            return response()->json(['success' => false, 'message' => 'Failed to verify payment']);
         }
     }
 
@@ -500,6 +741,52 @@ class AdminController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['success' => false, 'message' => 'Failed to reject payment']);
+        }
+    }
+
+    public function updatePayment(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'status' => 'sometimes|nullable|string',
+            'metode_bayar' => 'sometimes|nullable|string',
+            'jumlah' => 'sometimes|numeric|min:0',
+            'tanggal_bayar' => 'sometimes|nullable|date',
+            'alasan_reject' => 'sometimes|nullable|string|max:500',
+        ]);
+
+        try {
+            $payment = Pembayaran::findOrFail($id);
+            $payment->update($validated);
+
+            LogActivity::create([
+                'user_id' => session('user_id'),
+                'action' => 'Updated payment ID: ' . $id,
+                'created_at' => now(),
+            ]);
+
+            return response()->json(['success' => true, 'message' => 'Payment updated successfully']);
+        } catch (
+            \Exception $e
+        ) {
+            return response()->json(['success' => false, 'message' => 'Failed to update payment']);
+        }
+    }
+
+    public function deletePayment($id)
+    {
+        try {
+            $payment = Pembayaran::findOrFail($id);
+            $payment->delete();
+
+            LogActivity::create([
+                'user_id' => session('user_id'),
+                'action' => 'Deleted payment ID: ' . $id,
+                'created_at' => now(),
+            ]);
+
+            return response()->json(['success' => true, 'message' => 'Payment deleted successfully']);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Failed to delete payment']);
         }
     }
 }

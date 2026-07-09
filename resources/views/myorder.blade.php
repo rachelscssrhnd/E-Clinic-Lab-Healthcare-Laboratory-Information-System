@@ -28,6 +28,9 @@
                     <a href="{{ route('labtest') }}" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
                         <i data-feather="flask" class="mr-2"></i> Lab Test
                     </a>
+                    <a href="{{ route('result') }}" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                        <i data-feather="clipboard" class="mr-2"></i> Test Result
+                    </a>
                     <a href="{{ route('myorder') }}" class="border-primary-500 text-gray-900 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
                         <i data-feather="shopping-bag" class="mr-2"></i> My Order
                     </a>
@@ -36,9 +39,6 @@
                 @if(session()->has('user_id'))
                     <div class="flex items-center space-x-4">
                         <span class="text-gray-700">Welcome, {{ session('username') }}</span>
-                        <a href="{{ route('myorder') }}" class="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
-                            <i data-feather="shopping-bag" class="mr-1"></i> My Orders
-                        </a>
                         <form method="POST" action="{{ route('logout') }}" class="inline">
                             @csrf
                             <button type="submit" class="text-white px-4 py-2 rounded-md text-sm font-medium bg-red-500 hover:bg-red-600">
@@ -48,7 +48,7 @@
                     </div>
                 @else
                     <div class="flex items-center space-x-2">
-                    <a href="{{ route('auth') }}" class="text-white px-4 py-2 rounded-md text-sm font-medium flex items-center bg-gradient-to-r from-green-500 to-yellow-400 hover:from-green-600 hover:to-yellow-500">
+                    <a href="{{ route('auth') }}" class="text-white px-4 py-2 rounded-md text-sm font-medium flex items-center bg-green-600 hover:bg-green-700">
                         <i data-feather="user" class="mr-2"></i> Sign In
                     </a>
                     </div>
@@ -94,6 +94,21 @@
 
             <!-- Orders List -->
             @forelse($bookings as $booking)
+            @php
+                $testsCollection = $booking->jenisTes ?? ($booking->jenis_tes ?? collect());
+                $testsCount = is_object($testsCollection) && method_exists($testsCollection, 'count') ? $testsCollection->count() : (is_array($testsCollection) ? count($testsCollection) : 0);
+                $patientName = data_get($booking, 'pasien.nama', '-');
+                $amount = (int) data_get($booking, 'pembayaran.jumlah', 0);
+
+                $sesiNumber = data_get($booking, 'sesi') ?? data_get($booking, 'sesi_fallback') ?? session('booking_sesi_' . data_get($booking, 'booking_id'));
+                $sesiMap = [
+                    1 => 'Sesi 1 (08:00-10:00)',
+                    2 => 'Sesi 2 (10:00-12:00)',
+                    3 => 'Sesi 3 (13:00-15:00)',
+                    4 => 'Sesi 4 (15:00-17:00)',
+                ];
+                $sesiLabel = $sesiNumber && isset($sesiMap[(int) $sesiNumber]) ? $sesiMap[(int) $sesiNumber] : null;
+            @endphp
             <div class="mt-6 bg-white rounded-xl border border-gray-200 shadow-sm">
                 <div class="p-4 sm:p-6">
                     <div class="flex items-start justify-between">
@@ -106,18 +121,22 @@
                         </div>
                         <div class="text-right text-sm text-gray-600">
                             <div>{{ \Carbon\Carbon::parse($booking->tanggal_booking)->format('d M Y') }}</div>
-                            <div class="mt-1">{{ $booking->cabang->nama_cabang ?? 'Branch' }}</div>
+                            <div class="mt-1">{{ $sesiLabel ?? ('Sesi ' . ($sesiNumber ?? '-')) }}</div>
+                            <div class="mt-1">{{ $booking->cabang->display_name ?? $booking->cabang->nama_cabang ?? 'Branch' }}</div>
                         </div>
                     </div>
 
                     <div class="mt-4 rounded-lg border border-gray-200 p-4 flex items-center justify-between">
                         <div>
-                            <p class="font-medium text-gray-900">{{ $booking->pasien->nama }}</p>
-                            <p class="mt-1 text-sm text-gray-500">{{ $booking->jenisTes->count() }} items · Rp{{ number_format($booking->pembayaran->jumlah ?? 0, 0, ',', '.') }}</p>
+                            <p class="font-medium text-gray-900">{{ $patientName }}</p>
+                            <p class="mt-1 text-sm text-gray-500">{{ $testsCount }} items · Rp{{ number_format($amount, 0, ',', '.') }}</p>
                         </div>
                         <span class="inline-flex items-center px-3 py-1 rounded-md text-xs font-semibold 
                             @if($booking->status_pembayaran == 'pending') text-yellow-700 bg-yellow-50 border border-yellow-200
+                            @elseif($booking->status_pembayaran == 'waiting_confirmation') text-yellow-700 bg-yellow-50 border border-yellow-200
                             @elseif($booking->status_pembayaran == 'paid') text-green-700 bg-green-50 border border-green-200
+                            @elseif($booking->status_pembayaran == 'confirmed') text-green-700 bg-green-50 border border-green-200
+                            @elseif($booking->status_pembayaran == 'completed') text-green-700 bg-green-50 border border-green-200
                             @else text-red-700 bg-red-50 border border-red-200
                             @endif">
                             {{ strtoupper($booking->status_pembayaran) }}
@@ -125,11 +144,11 @@
                     </div>
 
                     <div class="mt-4 flex items-center justify-between">
-                        <p class="text-sm text-gray-600">Total {{ $booking->jenisTes->count() }} items</p>
-                        <p class="text-lg font-bold text-gray-900">Rp{{ number_format($booking->pembayaran->jumlah ?? 0, 0, ',', '.') }}</p>
+                        <p class="text-sm text-gray-600">Total {{ $testsCount }} items</p>
+                        <p class="text-lg font-bold text-gray-900">Rp{{ number_format($amount, 0, ',', '.') }}</p>
                     </div>
                     <div class="mt-4 flex justify-end">
-                        <a href="{{ route('booking.show', $booking->booking_id) }}" class="inline-flex items-center px-4 py-2 rounded-md text-sm font-medium text-white bg-gradient-to-r from-green-500 to-yellow-400 hover:from-green-600 hover:to-yellow-500">
+                        <a href="{{ route('myorder.show', $booking->booking_id) }}" class="inline-flex items-center px-4 py-2 rounded-md text-sm font-medium text-white bg-green-600 hover:bg-green-700">
                             View Details
                             <i data-feather="arrow-right" class="ml-2"></i>
                         </a>
@@ -141,7 +160,7 @@
                 <i data-feather="shopping-bag" class="h-12 w-12 mx-auto text-gray-400"></i>
                 <h3 class="mt-4 text-lg font-medium text-gray-900">No orders found</h3>
                 <p class="mt-2 text-gray-500">You haven't made any bookings yet.</p>
-                <a href="{{ route('labtest') }}" class="mt-4 inline-flex items-center px-4 py-2 rounded-md text-sm font-medium text-white bg-gradient-to-r from-green-500 to-yellow-400 hover:from-green-600 hover:to-yellow-500">
+                <a href="{{ route('labtest') }}" class="mt-4 inline-flex items-center px-4 py-2 rounded-md text-sm font-medium text-white bg-primary-600 hover:bg-primary-700">
                     Browse Tests
                 </a>
             </div>
@@ -186,6 +205,18 @@
     <script>
         AOS.init();
         feather.replace();
+
+        @if(session('success'))
+            alert('{{ session('success') }}');
+        @endif
+
+        @if(session('error'))
+            alert('{{ session('error') }}');
+        @endif
+
+        @if($errors->any())
+            alert('{{ $errors->first() }}');
+        @endif
     </script>
 </body>
 </html>

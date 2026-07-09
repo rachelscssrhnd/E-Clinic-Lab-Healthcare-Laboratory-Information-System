@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Booking;
 use App\Models\Pasien;
+use App\Models\LogActivity;
+use App\Models\Cabang;
 use Illuminate\Support\Facades\Auth;
 
 class MyOrderController extends Controller
@@ -28,13 +30,72 @@ class MyOrderController extends Controller
             // Filter bookings based on tab
             if ($tab === 'history') {
                 $bookings = $allBookings->filter(function($booking) {
-                    return in_array($booking->status_pembayaran, ['paid', 'completed']) || 
-                           in_array($booking->status_tes, ['completed', 'cancelled']);
+                    return in_array($booking->status_pembayaran, ['paid', 'completed', 'confirmed']) || 
+                           in_array($booking->status_tes, ['completed', 'cancelled', 'confirmed']);
                 });
             } else {
                 $bookings = $allBookings->filter(function($booking) {
-                    return $booking->status_pembayaran === 'pending' || 
+                    return in_array($booking->status_pembayaran, ['pending', 'waiting_confirmation']) || 
                            $booking->status_tes === 'scheduled';
+                });
+            }
+
+            $bookingIds = $bookings->pluck('booking_id')->filter()->values();
+            $bookingIdStrings = $bookingIds->map(function ($id) {
+                return (string) $id;
+            });
+
+            $branchLabelById = Cabang::orderBy('cabang_id')
+                ->pluck('cabang_id')
+                ->values()
+                ->mapWithKeys(function ($cabangId, $idx) {
+                    return [$cabangId => 'Cabang ' . chr(65 + $idx)];
+                });
+
+            $bookings->each(function ($booking) use ($branchLabelById) {
+                if (isset($booking->cabang) && $booking->cabang) {
+                    $label = $branchLabelById[$booking->cabang_id] ?? null;
+                    if ($label) {
+                        $booking->cabang->display_name = $label;
+                    }
+                }
+            });
+
+            if ($bookingIds->isNotEmpty()) {
+                $logs = LogActivity::where('action', 'like', 'booking_sesi:%')
+                    ->orderBy('created_at', 'desc')
+                    ->get();
+
+                $sesiByBooking = collect();
+                foreach ($logs as $log) {
+                    $action = (string) $log->action;
+                    $sesi = null;
+                    $bookingId = null;
+
+                    if (preg_match('/booking_sesi\s*:\s*(\d+)/i', $action, $m)) {
+                        $sesi = (int) $m[1];
+                    }
+                    if (preg_match('/booking_id\s*:\s*([0-9]+)/i', $action, $m2)) {
+                        $bookingId = (string) $m2[1];
+                    }
+
+                    if ($bookingId === null) {
+                        continue;
+                    }
+
+                    if (!$bookingIdStrings->contains($bookingId)) {
+                        continue;
+                    }
+
+                    // Keep first (newest) log per booking id
+                    if (!$sesiByBooking->has($bookingId)) {
+                        $sesiByBooking->put($bookingId, $sesi);
+                    }
+                }
+
+                $bookings->each(function ($booking) use ($sesiByBooking) {
+                    // Always attach sesi_fallback from logs if available, regardless of existing sesi
+                    $booking->sesi_fallback = $sesiByBooking[(string) $booking->booking_id] ?? null;
                 });
             }
 
@@ -83,8 +144,8 @@ class MyOrderController extends Controller
             // Filter bookings based on tab
             if ($tab === 'history') {
                 $bookings = $allBookings->filter(function($booking) {
-                    return in_array($booking->status_pembayaran, ['paid']) || 
-                           in_array($booking->status_tes, ['completed']);
+                    return in_array($booking->status_pembayaran, ['paid', 'confirmed']) || 
+                           in_array($booking->status_tes, ['completed', 'confirmed']);
                 });
             } else {
                 $bookings = $allBookings->filter(function($booking) {
@@ -103,12 +164,83 @@ class MyOrderController extends Controller
     public function show($id)
     {
         try {
+            $userId = session('user_id');
+            if (!$userId) {
+                return redirect()->route('auth')->with('error', 'Please login to view order details.');
+            }
+
             $booking = Booking::with(['pasien', 'cabang', 'jenisTes', 'pembayaran'])
-                ->findOrFail($id);
-            
+                ->where('booking_id', $id)
+                ->whereHas('pasien', function ($q) use ($userId) {
+                    $q->where('user_id', $userId);
+                })
+                ->firstOrFail();
+
+            $canonicalCatalog = [
+                ['tes_id' => 1, 'nama_tes' => 'Tes Rontgen Gigi (Dental I CR)', 'deskripsi' => 'Pemeriksaan rontgen gigi untuk membantu mendeteksi kondisi gigi dan rahang.'],
+                ['tes_id' => 2, 'nama_tes' => 'Tes Rontgen Gigi (Panoramic)', 'deskripsi' => 'Pemeriksaan rontgen menyeluruh area mulut dan rahang (panoramik).'],
+                ['tes_id' => 3, 'nama_tes' => "Tes Rontgen Gigi (Water\'s Foto)", 'deskripsi' => 'Pemeriksaan rontgen untuk membantu evaluasi area sinus dan tulang wajah.'],
+                ['tes_id' => 4, 'nama_tes' => 'Tes Urine', 'deskripsi' => 'Pemeriksaan urine untuk membantu deteksi infeksi, metabolisme, dan kondisi kesehatan umum.'],
+                ['tes_id' => 5, 'nama_tes' => 'Tes Kehamilan (Anti-Rubella lgG)', 'deskripsi' => 'Pemeriksaan antibodi Rubella IgG untuk melihat riwayat paparan/imunitas.'],
+                ['tes_id' => 6, 'nama_tes' => 'Tes Kehamilan (Anti-CMV lgG)', 'deskripsi' => 'Pemeriksaan antibodi CMV IgG untuk melihat riwayat paparan/imunitas.'],
+                ['tes_id' => 7, 'nama_tes' => 'Tes Kehamilan (Anti-HSV1 lgG)', 'deskripsi' => 'Pemeriksaan antibodi HSV-1 IgG untuk melihat riwayat paparan/imunitas.'],
+                ['tes_id' => 8, 'nama_tes' => 'Tes Darah (Hemoglobin)', 'deskripsi' => 'Pemeriksaan kadar hemoglobin untuk membantu evaluasi anemia dan kondisi darah.'],
+                ['tes_id' => 9, 'nama_tes' => 'Tes Darah (Golongan Darah)', 'deskripsi' => 'Pemeriksaan golongan darah ABO dan Rhesus.'],
+                ['tes_id' => 10, 'nama_tes' => 'Tes Darah (Agregasi Trombosit)', 'deskripsi' => 'Pemeriksaan fungsi trombosit untuk membantu evaluasi pembekuan darah.'],
+            ];
+            if (isset($booking->jenisTes) && $booking->jenisTes) {
+                $booking->jenisTes->each(function ($test) use ($canonicalCatalog) {
+                    $canon = collect($canonicalCatalog)->firstWhere('tes_id', (int) ($test->tes_id ?? 0));
+                    if ($canon) {
+                        $test->nama_tes = $canon['nama_tes'];
+                        if (empty($test->deskripsi)) {
+                            $test->deskripsi = $canon['deskripsi'];
+                        }
+                    }
+                });
+            }
+
+            if (isset($booking->cabang) && $booking->cabang) {
+                $branchLabelById = Cabang::orderBy('cabang_id')
+                    ->pluck('cabang_id')
+                    ->values()
+                    ->mapWithKeys(function ($cabangId, $idx) {
+                        return [$cabangId => 'Cabang ' . chr(65 + $idx)];
+                    });
+                $label = $branchLabelById[$booking->cabang_id] ?? null;
+                if ($label) {
+                    $booking->cabang->display_name = $label;
+                }
+            }
+
+            if (!isset($booking->sesi) || $booking->sesi === null) {
+                $targetId = (string) $booking->booking_id;
+                $logs = LogActivity::where('action', 'like', 'booking_sesi:%')
+                    ->orderBy('created_at', 'desc')
+                    ->get();
+
+                foreach ($logs as $log) {
+                    $action = (string) $log->action;
+                    $sesi = null;
+                    $bookingId = null;
+
+                    if (preg_match('/booking_sesi\s*:\s*(\d+)/i', $action, $m)) {
+                        $sesi = (int) $m[1];
+                    }
+                    if (preg_match('/booking_id\s*:\s*([0-9]+)/i', $action, $m2)) {
+                        $bookingId = (string) $m2[1];
+                    }
+
+                    if ($bookingId === $targetId) {
+                        $booking->sesi_fallback = $sesi;
+                        break;
+                    }
+                }
+            }
+
             return view('myorder.show', compact('booking'));
         } catch (\Exception $e) {
-            return redirect()->route('myorder')->withErrors(['error' => 'Order not found']);
+            return redirect()->route('myorder', ['tab' => 'current'])->with('error', 'Order not found');
         }
     }
 
