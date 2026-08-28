@@ -1,121 +1,17 @@
-# Basis Data - Sistem Informasi Laboratorium Klinik (Laravel) Kelompok E
+# E-Clinic Lab - Healthcare Laboratory Information System
 
-Repository GitHub: https://github.com/rachelscssrhnd/basdat
+**Final Project: Advanced Database | MySQL | Pentaho Data Integration | OLAP**
 
-## Nama Anggota
-- Miska Chirzia (164231008)
-- Rachel Sunarko (164231025)
-- I Made Adi Karunia Putra (164231057)
-- Sarah Alya Azizah (164231105)
-- Za’ima Rafifa Salsabila (164231116)
+Designed and implemented a relational database system using MySQL to support transactional operations across healthcare laboratory branches.
 
-## Prasyarat
+Developed normalized database schemas and data models to ensure data consistency, integrity, and efficient query performance.
 
-Pastikan sudah ter-install:
+Architected an OLTP-OLAP environment by separating operational databases from analytical data warehouses to support reporting and decision-making.
 
-- PHP 8.2+
-- Composer
-- Node.js + npm
-- MySQL/MariaDB
+Built end-to-end ETL pipelines using Pentaho Data Integration (PDI) to extract, transform, validate, and load data from transactional systems into the data warehouse.
 
-## Setup Project
+Implemented data quality checks and transformation rules during ETL processes to improve data accuracy and reliability.
 
-Jalankan perintah berikut di folder project (`basdat/`):
+Developed analytical dashboards powered by the OLAP warehouse to monitor laboratory performance, operational trends, and branch-level metrics.
 
-1) Install dependency backend
-
-```bash
-composer install
-```
-
-2) Download file database (basdat.sql) dan data warehouse (dw_basdat.sql) lalu import ke MySQL. Setelah itu aktifkan MySQL dengan start.
-
-3) Buat file environment
-
-Project ini membutuhkan file `.env`.
-
-- Jika ada `.env.example`, copy menjadi `.env`.
-- Jika tidak ada, buat file `.env` baru lalu isi minimal seperti contoh di bawah ini.
-
-Contoh konfigurasi (sesuaikan user/password/nama database di komputer):
-
-```env
-APP_NAME="Basdat"
-APP_ENV=local
-APP_KEY=
-APP_DEBUG=true
-APP_URL=http://127.0.0.1:8000
-
-DB_CONNECTION=mysql
-
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=basdat
-DB_USERNAME=root
-DB_PASSWORD=
-
-DB_WAREHOUSE_HOST=127.0.0.1
-DB_WAREHOUSE_PORT=3306
-DB_WAREHOUSE_DATABASE=dw_basdat
-DB_WAREHOUSE_USERNAME=root
-DB_WAREHOUSE_PASSWORD=
-```
-
-4) Generate application key
-
-```bash
-php artisan key:generate
-```
-
-5) Jalankan migration + seeder
-
-```bash
-php artisan migrate --seed
-```
-
-## Menjalankan Aplikasi
-
-```bash
-php artisan serve
-```
-
-## Akun Default (Seeder)
-
-Seeder membuat akun:
-
-- Admin
-  - Username: `admin`
-  - Password: `admin123`
-- User/Pasien
-  - Username: `test`
-  - Password: `test1234`
-
-## URL Penting
-
-- Home: `http://127.0.0.1:8000/`
-- Login: `http://127.0.0.1:8000/login`
-- Admin Dashboard: `http://127.0.0.1:8000/admin`
-
-## Catatan Database Warehouse (Analytics)
-
-Fitur analytics di Admin Dashboard mengambil data dari koneksi database `warehouse` (lihat `config/database.php`).
-
-Jika database warehouse belum disiapkan:
-
-- Halaman admin tetap bisa dibuka.
-- Bagian chart/analytics bisa gagal memuat data (karena query ke koneksi `warehouse`).
-
-Solusi:
-
-- Buat database warehouse sesuai kebutuhan tugas dan isi tabel dimensi/fakta.
-- Pastikan variabel `.env` `DB_WAREHOUSE_*` sudah benar.
-
-## Troubleshooting
-
-- Jika error terkait `.env` atau `APP_KEY`:
-  - Pastikan `.env` ada.
-  - Jalankan `php artisan key:generate`.
-
-- Jika error koneksi database:
-  - Pastikan MySQL aktif.
-  - Cek `DB_*` dan `DB_WAREHOUSE_*` di `.env`.
+Optimized SQL queries and warehouse structures to improve reporting performance and support scalable analytical workloads.
